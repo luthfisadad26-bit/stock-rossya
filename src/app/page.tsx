@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Badge } from '@/components/common/Badge';
 import { Product, formatRupiah, getStockStatus } from '@/lib/mock-data';
 import { supabase } from '@/lib/supabase';
+import { getResetTimestamp } from '@/lib/reset-helper';
 import {
   TrendingUp,
   ShoppingBag,
@@ -73,7 +74,8 @@ export default function DashboardPage() {
         setProducts(mappedProducts);
       }
 
-      // 2. Fetch Transactions & Transaction Items
+      // 2. Fetch Transactions & Transaction Items (Filtered by Reset Cutoff)
+      const cutoff = getResetTimestamp();
       const { data: txData } = await supabase
         .from('transactions')
         .select(`
@@ -89,6 +91,7 @@ export default function DashboardPage() {
             quantity
           )
         `)
+        .gte('created_at', cutoff)
         .order('created_at', { ascending: false });
 
       if (txData) {
@@ -106,6 +109,8 @@ export default function DashboardPage() {
           })),
         }));
         setTransactions(mappedTx);
+      } else {
+        setTransactions([]);
       }
     } catch (err) {
       console.error('Gagal mengambil data dashboard:', err);
@@ -116,6 +121,9 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
+    const handleReset = () => fetchDashboardData();
+    window.addEventListener('financials-reset', handleReset);
+    return () => window.removeEventListener('financials-reset', handleReset);
   }, []);
 
   // Low stock products filter

@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { formatRupiah } from '@/lib/mock-data';
 import { supabase } from '@/lib/supabase';
+import { getResetTimestamp, setResetTimestamp } from '@/lib/reset-helper';
 import {
   Wallet,
   ArrowUpCircle,
@@ -15,6 +16,7 @@ import {
   Check,
   Loader2,
   FileSpreadsheet,
+  RotateCcw,
 } from 'lucide-react';
 import {
   PieChart,
@@ -72,43 +74,50 @@ export default function KeuanganPage() {
   const fetchKeuanganData = async () => {
     setLoading(true);
     try {
-      // 1. Fetch Cash Entries
+      const cutoff = getResetTimestamp();
+
+      // 1. Fetch Cash Entries (Filtered by Reset Cutoff)
       const { data: cashData } = await supabase
         .from('cash_entries')
         .select('*')
+        .gte('created_at', cutoff)
         .order('created_at', { ascending: false });
 
       if (cashData) {
         setCashRecords(cashData as DBCashEntry[]);
+      } else {
+        setCashRecords([]);
       }
 
       // 2. Fetch Sales by Category for Pie Chart
       const { data: txItemsData } = await supabase
         .from('transaction_items')
-        .select('subtotal, items (category)');
+        .select('subtotal, items (category), created_at')
+        .gte('created_at', cutoff);
+
+      const catMap: Record<string, number> = {
+        'Baju Putih': 0,
+        Celana: 0,
+        Rok: 0,
+        Pramuka: 0,
+        Aksesoris: 0,
+        Batik: 0,
+      };
 
       if (txItemsData) {
-        const catMap: Record<string, number> = {
-          'Baju Putih': 0,
-          Celana: 0,
-          Pramuka: 0,
-          Aksesoris: 0,
-          Batik: 0,
-        };
-
         txItemsData.forEach((row: any) => {
           const catName = row.items?.category || 'Baju Putih';
           catMap[catName] = (catMap[catName] || 0) + (row.subtotal || 0);
         });
-
-        const pieData: CategoryRevenue[] = Object.keys(catMap).map((cat) => ({
-          category: cat,
-          value: catMap[cat],
-          color: CATEGORY_COLORS[cat] || '#1F2D50',
-        }));
-
-        setCategoryBreakdown(pieData);
       }
+
+      const pieData: CategoryRevenue[] = Object.keys(catMap).map((cat) => ({
+        category: cat,
+        value: catMap[cat],
+        color: CATEGORY_COLORS[cat] || '#1F2D50',
+      }));
+
+      setCategoryBreakdown(pieData);
     } catch (err) {
       console.error('Gagal mengambil data keuangan:', err);
     } finally {
@@ -116,8 +125,18 @@ export default function KeuanganPage() {
     }
   };
 
+  const handleResetData = () => {
+    if (confirm('Apakah Anda yakin ingin mereset Laporan & Keuangan ke Rp 0? Semua transaksi lama akan di-reset dari 0.')) {
+      setResetTimestamp();
+      fetchKeuanganData();
+    }
+  };
+
   useEffect(() => {
     fetchKeuanganData();
+    const handleReset = () => fetchKeuanganData();
+    window.addEventListener('financials-reset', handleReset);
+    return () => window.removeEventListener('financials-reset', handleReset);
   }, []);
 
   // Calculate Financial Summary
@@ -202,13 +221,23 @@ export default function KeuanganPage() {
             </p>
           </div>
 
-          <button
-            onClick={() => setIsCashModalOpen(true)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-maroon hover:bg-maroon-700 text-white font-medium text-xs sm:text-sm rounded-xl transition-all shadow-md active:scale-95 w-full sm:w-auto"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Catat Kas Masuk/Keluar</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={handleResetData}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-offwhite hover:bg-rose-50 text-rose-700 font-medium text-xs sm:text-sm rounded-xl border border-rose-200 transition-all active:scale-95"
+              title="Reset Semua Angka Keuangan ke Rp 0"
+            >
+              <RotateCcw className="w-4 h-4" />
+              <span>Reset ke Rp 0</span>
+            </button>
+            <button
+              onClick={() => setIsCashModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-maroon hover:bg-maroon-700 text-white font-medium text-xs sm:text-sm rounded-xl transition-all shadow-md active:scale-95 w-full sm:w-auto"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Catat Kas Masuk/Keluar</span>
+            </button>
+          </div>
         </div>
 
         {/* 3 FINANCIAL KPI CARDS */}
