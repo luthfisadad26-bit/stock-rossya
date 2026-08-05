@@ -1,0 +1,22 @@
+# dependencies
+node_modules/
+
+# next.js
+.next/
+out/
+
+# env files (JANGAN commit credential!)
+.env
+.env.local
+.env.*.local
+
+# design references
+stitch_toko_seragam_mobile_manager/
+stitch_toko_seragam_mobile_manager*
+design-reference/
+*.zip
+
+# misc
+.DS_Store
+*.pem
+Thumbs.db
