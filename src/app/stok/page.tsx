@@ -127,7 +127,7 @@ export default function StokPage() {
         const mapped: Product[] = data.map((item: any) => ({
           id: item.id,
           name: item.name,
-          category: item.category as Product['category'],
+          category: (item.name.toLowerCase().includes('rok') ? 'Rok' : item.category) as Product['category'],
           size: item.size,
           price: item.price,
           costPrice: item.cost_price,
