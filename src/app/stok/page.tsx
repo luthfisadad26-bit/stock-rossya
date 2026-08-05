@@ -8,6 +8,7 @@ import { supabase } from '@/lib/supabase';
 import {
   Search,
   Plus,
+  Minus,
   Edit2,
   Trash2,
   Filter,
@@ -99,7 +100,7 @@ export default function StokPage() {
     fetchProducts();
   }, []);
 
-  // Filter products based on search and category
+  // Filter products based on search, category, and status
   const filteredProducts = useMemo(() => {
     return products.filter((item) => {
       const matchesSearch =
@@ -162,6 +163,42 @@ export default function StokPage() {
     setIsModalOpen(true);
   };
 
+  // Quick adjust stock count (+ / -) directly
+  const handleQuickAdjustStock = async (product: Product, delta: number) => {
+    const newStock = Math.max(0, product.stock + delta);
+    if (newStock === product.stock) return;
+
+    try {
+      const { data: updateData, error: updateErr } = await supabase
+        .from('items')
+        .update({ stock: newStock })
+        .eq('id', product.id)
+        .select();
+
+      if (updateErr) {
+        alert('Gagal mengupdate stok: ' + updateErr.message);
+        return;
+      }
+
+      if (!updateData || updateData.length === 0) {
+        alert('Gagal mengupdate stok! Mohon jalankan file migration 005_fix_update_policies.sql di SQL Editor Supabase Anda.');
+        return;
+      }
+
+      // Record stock movement
+      await supabase.from('stock_movements').insert({
+        item_id: product.id,
+        type: delta > 0 ? 'masuk' : 'keluar',
+        quantity: Math.abs(delta),
+        note: delta > 0 ? 'Restok cepat (Tambah stok)' : 'Pengurangan stok cepat',
+      });
+
+      await fetchProducts();
+    } catch (err) {
+      console.error('Exception quick adjusting stock:', err);
+    }
+  };
+
   // View Stock Movement History for a specific item
   const handleOpenHistoryModal = async (product: Product) => {
     setHistoryModalItem(product);
@@ -201,7 +238,7 @@ export default function StokPage() {
     try {
       if (editingProduct) {
         // 1. UPDATE items table
-        const { error: updateErr } = await supabase
+        const { data: updateData, error: updateErr } = await supabase
           .from('items')
           .update({
             name: formData.name,
@@ -213,10 +250,17 @@ export default function StokPage() {
             min_stock: newMinStock,
             sku: formData.sku,
           })
-          .eq('id', editingProduct.id);
+          .eq('id', editingProduct.id)
+          .select();
 
         if (updateErr) {
           alert('Gagal mengupdate barang: ' + updateErr.message);
+          setIsSaving(false);
+          return;
+        }
+
+        if (!updateData || updateData.length === 0) {
+          alert('Gagal mengupdate barang! Mohon jalankan file migration 005_fix_update_policies.sql di SQL Editor Supabase Anda.');
           setIsSaving(false);
           return;
         }
@@ -472,39 +516,57 @@ export default function StokPage() {
                   </p>
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-card-border flex items-center justify-between">
-                  <div>
-                    <p className="text-[10px] text-gray-400">Harga Jual</p>
-                    <p className="font-number text-base font-bold text-navy">
-                      {formatRupiah(product.price)}
-                    </p>
-                  </div>
-
-                  <div className="flex items-center gap-1.5">
-                    <div className="text-right mr-2">
-                      <p className="text-[10px] text-gray-400">Stok</p>
-                      <p className="font-number text-sm font-bold text-navy">
-                        {product.stock} pcs
+                <div className="mt-4 pt-3 border-t border-card-border space-y-3">
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <p className="text-[10px] text-gray-400">Harga Jual</p>
+                      <p className="font-number text-base font-bold text-navy">
+                        {formatRupiah(product.price)}
                       </p>
                     </div>
 
+                    {/* Quick Restok Stepper */}
+                    <div className="flex items-center gap-1 bg-offwhite p-1 rounded-xl border border-card-border">
+                      <button
+                        onClick={() => handleQuickAdjustStock(product, -1)}
+                        className="w-6 h-6 rounded-lg bg-white border border-card-border flex items-center justify-center text-navy font-bold hover:bg-gray-100 text-xs"
+                        title="Kurangi 1 Stok"
+                      >
+                        -
+                      </button>
+                      <span className="font-number text-xs font-bold text-navy px-1.5 min-w-[2.5rem] text-center">
+                        {product.stock} pcs
+                      </span>
+                      <button
+                        onClick={() => handleQuickAdjustStock(product, 1)}
+                        className="w-6 h-6 rounded-lg bg-white border border-card-border flex items-center justify-center text-navy font-bold hover:bg-gray-100 text-xs"
+                        title="Tambah 1 Stok (Restok Cepat)"
+                      >
+                        +
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-end gap-1.5 pt-1">
                     <button
                       onClick={() => handleOpenHistoryModal(product)}
-                      className="p-2 rounded-lg bg-offwhite border border-card-border text-navy hover:bg-khaki-100 transition-colors"
+                      className="px-2.5 py-1.5 rounded-lg bg-offwhite border border-card-border text-navy hover:bg-khaki-100 transition-colors text-xs font-medium flex items-center gap-1"
                       title="Riwayat Mutasi Stok"
                     >
                       <History className="w-3.5 h-3.5" />
+                      <span>Riwayat</span>
                     </button>
                     <button
                       onClick={() => handleOpenEditModal(product)}
-                      className="p-2 rounded-lg bg-offwhite border border-card-border text-navy hover:bg-khaki-100 transition-colors"
-                      title="Edit"
+                      className="px-2.5 py-1.5 rounded-lg bg-navy text-white hover:bg-navy-800 transition-colors text-xs font-medium flex items-center gap-1"
+                      title="Edit Barang & Stok"
                     >
                       <Edit2 className="w-3.5 h-3.5" />
+                      <span>Edit</span>
                     </button>
                     <button
                       onClick={() => handleDeleteProduct(product.id, product.name)}
-                      className="p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 transition-colors"
+                      className="p-1.5 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 hover:bg-rose-100 transition-colors"
                       title="Hapus"
                     >
                       <Trash2 className="w-3.5 h-3.5" />
@@ -553,8 +615,24 @@ export default function StokPage() {
                       <td className="py-3 px-4 font-number font-bold text-navy">
                         {formatRupiah(product.price)}
                       </td>
-                      <td className="py-3 px-4 font-number font-bold text-center text-navy">
-                        {product.stock}
+                      <td className="py-3 px-4 text-center">
+                        <div className="inline-flex items-center justify-center gap-1 bg-offwhite px-2 py-1 rounded-lg border border-card-border">
+                          <button
+                            onClick={() => handleQuickAdjustStock(product, -1)}
+                            className="w-5 h-5 bg-white rounded border border-card-border text-navy font-bold hover:bg-gray-100 text-xs flex items-center justify-center"
+                          >
+                            -
+                          </button>
+                          <span className="font-number font-bold text-navy px-1">
+                            {product.stock}
+                          </span>
+                          <button
+                            onClick={() => handleQuickAdjustStock(product, 1)}
+                            className="w-5 h-5 bg-white rounded border border-card-border text-navy font-bold hover:bg-gray-100 text-xs flex items-center justify-center"
+                          >
+                            +
+                          </button>
+                        </div>
                       </td>
                       <td className="py-3 px-4 text-center">
                         <Badge stock={product.stock} minStock={product.minStock} />
@@ -570,7 +648,7 @@ export default function StokPage() {
                           </button>
                           <button
                             onClick={() => handleOpenEditModal(product)}
-                            className="p-1.5 rounded-lg bg-offwhite border border-card-border text-navy hover:bg-khaki-100 transition-colors"
+                            className="p-1.5 rounded-lg bg-navy text-white hover:bg-navy-800 transition-colors"
                             title="Edit Barang"
                           >
                             <Edit2 className="w-3.5 h-3.5" />
@@ -598,7 +676,7 @@ export default function StokPage() {
             <div className="bg-white w-full max-w-lg rounded-card shadow-2xl border border-card-border overflow-hidden my-8 animate-in fade-in zoom-in duration-200">
               <div className="bg-navy text-white px-5 py-4 flex items-center justify-between">
                 <h3 className="font-heading font-bold text-base sm:text-lg">
-                  {editingProduct ? 'Edit Barang' : 'Tambah Barang Baru'}
+                  {editingProduct ? 'Edit Barang & Stok' : 'Tambah Barang Baru'}
                 </h3>
                 <button
                   onClick={() => !isSaving && setIsModalOpen(false)}
@@ -693,7 +771,7 @@ export default function StokPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
                     <label className="block text-xs font-semibold text-navy mb-1">
-                      Stok (pcs) *
+                      Jumlah Stok (pcs) *
                     </label>
                     <input
                       type="number"
