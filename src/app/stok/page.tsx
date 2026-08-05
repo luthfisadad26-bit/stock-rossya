@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Badge } from '@/components/common/Badge';
 import { Product, formatRupiah, getStockStatus } from '@/lib/mock-data';
 import { supabase } from '@/lib/supabase';
+import { getCustomCategories, saveCustomCategories } from '@/lib/categories';
 import {
   Search,
   Plus,
@@ -21,6 +22,8 @@ import {
   Loader2,
   ArrowUpRight,
   ArrowDownRight,
+  Tag,
+  Settings,
 } from 'lucide-react';
 
 interface StockMovementRecord {
@@ -40,6 +43,11 @@ export default function StokPage() {
   const [selectedStatus, setSelectedStatus] = useState<string>('Semua');
   const [viewMode, setViewMode] = useState<'card' | 'table'>('card');
 
+  // Dynamic Category Management State
+  const [categoryList, setCategoryList] = useState<string[]>([]);
+  const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
+  const [newCategoryInput, setNewCategoryInput] = useState('');
+
   // Add / Edit Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
@@ -52,7 +60,7 @@ export default function StokPage() {
   // Form State
   const [formData, setFormData] = useState({
     name: '',
-    category: 'Baju Putih' as Product['category'],
+    category: 'Baju Putih',
     size: 'M',
     price: '',
     costPrice: '',
@@ -61,8 +69,48 @@ export default function StokPage() {
     sku: '',
   });
 
-  const categories = ['Semua', 'Baju Putih', 'Celana', 'Pramuka', 'Aksesoris', 'Batik'];
+  // Load custom categories on mount & sync listener
+  const syncCategories = () => {
+    setCategoryList(getCustomCategories());
+  };
+
+  useEffect(() => {
+    syncCategories();
+    window.addEventListener('categories-updated', syncCategories);
+    return () => window.removeEventListener('categories-updated', syncCategories);
+  }, []);
+
+  const categories = useMemo(() => ['Semua', ...categoryList], [categoryList]);
   const statuses = ['Semua', 'Aman', 'Menipis', 'Habis'];
+
+  // Add new custom category
+  const handleAddCategory = () => {
+    const trimmed = newCategoryInput.trim();
+    if (!trimmed) return;
+    if (categoryList.includes(trimmed)) {
+      alert('Kategori sudah ada!');
+      return;
+    }
+    const updated = [...categoryList, trimmed];
+    setCategoryList(updated);
+    saveCustomCategories(updated);
+    setNewCategoryInput('');
+  };
+
+  // Delete category
+  const handleDeleteCategory = (catToDelete: string) => {
+    if (categoryList.length <= 1) {
+      alert('Minimal harus ada 1 kategori!');
+      return;
+    }
+    if (!confirm(`Hapus kategori "${catToDelete}"?`)) return;
+    const updated = categoryList.filter((c) => c !== catToDelete);
+    setCategoryList(updated);
+    saveCustomCategories(updated);
+    if (selectedCategory === catToDelete) {
+      setSelectedCategory('Semua');
+    }
+  };
 
   // Fetch Products from Supabase on mount
   const fetchProducts = async () => {
@@ -124,19 +172,12 @@ export default function StokPage() {
   // Open Modal for Add
   const handleOpenAddModal = () => {
     setEditingProduct(null);
-    const prefixMap: Record<string, string> = {
-      'Baju Putih': 'BP',
-      Celana: 'CL',
-      Pramuka: 'PRM',
-      Aksesoris: 'AKS',
-      Batik: 'BTK',
-    };
-    const cat = selectedCategory !== 'Semua' ? selectedCategory : 'Baju Putih';
-    const prefix = prefixMap[cat] || 'SRG';
+    const cat = selectedCategory !== 'Semua' ? selectedCategory : (categoryList[0] || 'Baju Putih');
+    const prefix = cat.slice(0, 3).toUpperCase();
 
     setFormData({
       name: '',
-      category: cat as Product['category'],
+      category: cat,
       size: 'M',
       price: '',
       costPrice: '',
@@ -356,7 +397,7 @@ export default function StokPage() {
   return (
     <AppLayout>
       <div className="space-y-5 sm:space-y-6">
-        {/* HEADER & ACTION BUTTON */}
+        {/* HEADER & ACTION BUTTONS */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 sm:p-5 rounded-card border border-card-border shadow-sm">
           <div>
             <div className="flex items-center gap-2 flex-wrap">
@@ -372,13 +413,23 @@ export default function StokPage() {
             </p>
           </div>
 
-          <button
-            onClick={handleOpenAddModal}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-maroon hover:bg-maroon-700 text-white font-medium text-xs sm:text-sm rounded-xl transition-all shadow-md active:scale-95 w-full sm:w-auto"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Tambah Barang Baru</span>
-          </button>
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => setIsCategoryModalOpen(true)}
+              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-offwhite hover:bg-khaki-100 text-navy font-medium text-xs sm:text-sm rounded-xl border border-card-border transition-all active:scale-95"
+              title="Kelola Kategori Barang"
+            >
+              <Tag className="w-4 h-4 text-khaki-700" />
+              <span>Kelola Kategori</span>
+            </button>
+            <button
+              onClick={handleOpenAddModal}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-maroon hover:bg-maroon-700 text-white font-medium text-xs sm:text-sm rounded-xl transition-all shadow-md active:scale-95"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Tambah Barang Baru</span>
+            </button>
+          </div>
         </div>
 
         {/* SEARCH & FILTERS BAR */}
@@ -452,6 +503,12 @@ export default function StokPage() {
                 {cat}
               </button>
             ))}
+            <button
+              onClick={() => setIsCategoryModalOpen(true)}
+              className="px-2 py-1 text-[11px] text-maroon hover:underline font-semibold shrink-0"
+            >
+              + Edit Kategori
+            </button>
           </div>
 
           {/* Status Chips Filter */}
@@ -684,6 +741,76 @@ export default function StokPage() {
           </div>
         )}
 
+        {/* MODAL KELOLA KATEGORI BARANG */}
+        {isCategoryModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4">
+            <div className="bg-white w-full max-w-md rounded-card shadow-2xl border border-card-border overflow-hidden animate-in fade-in zoom-in duration-200">
+              <div className="bg-navy text-white px-5 py-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <Tag className="w-5 h-5 text-khaki" />
+                  <h3 className="font-heading font-bold text-base">Kelola Kategori Barang</h3>
+                </div>
+                <button
+                  onClick={() => setIsCategoryModalOpen(false)}
+                  className="p-1 text-gray-300 hover:text-white"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <div className="p-5 space-y-4">
+                {/* Form Tambah Kategori Baru */}
+                <div className="flex gap-2">
+                  <input
+                    type="text"
+                    placeholder="Nama kategori baru (contoh: Kaos Olahraga)..."
+                    value={newCategoryInput}
+                    onChange={(e) => setNewCategoryInput(e.target.value)}
+                    onKeyDown={(e) => e.key === 'Enter' && handleAddCategory()}
+                    className="flex-1 px-3 py-2 bg-offwhite border border-card-border rounded-xl text-xs sm:text-sm focus:outline-none focus:border-navy text-navy"
+                  />
+                  <button
+                    onClick={handleAddCategory}
+                    className="px-4 py-2 bg-maroon text-white font-semibold text-xs rounded-xl hover:bg-maroon-700 flex items-center gap-1 shrink-0"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>Tambah</span>
+                  </button>
+                </div>
+
+                {/* List Kategori Terdaftar */}
+                <div className="space-y-2 max-h-60 overflow-y-auto pr-1">
+                  <p className="text-xs font-semibold text-navy mb-1">Daftar Kategori Aktif:</p>
+                  {categoryList.map((cat) => (
+                    <div
+                      key={cat}
+                      className="flex items-center justify-between p-2.5 bg-offwhite rounded-xl border border-card-border text-xs"
+                    >
+                      <span className="font-medium text-navy">{cat}</span>
+                      <button
+                        onClick={() => handleDeleteCategory(cat)}
+                        className="p-1 text-gray-400 hover:text-rose-600 transition-colors"
+                        title="Hapus Kategori"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="p-4 border-t border-card-border bg-gray-50 text-right">
+                <button
+                  onClick={() => setIsCategoryModalOpen(false)}
+                  className="px-5 py-2 bg-navy text-white text-xs font-semibold rounded-xl"
+                >
+                  Selesai
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* MODAL FORM (TAMBAH / EDIT BARANG) */}
         {isModalOpen && (
           <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-3 sm:p-4 overflow-y-auto">
@@ -730,11 +857,11 @@ export default function StokPage() {
                       }
                       className="w-full px-3 py-2 bg-offwhite border border-card-border rounded-xl text-sm focus:outline-none focus:border-navy"
                     >
-                      <option value="Baju Putih">Baju Putih</option>
-                      <option value="Celana">Celana</option>
-                      <option value="Pramuka">Pramuka</option>
-                      <option value="Aksesoris">Aksesoris</option>
-                      <option value="Batik">Batik</option>
+                      {categoryList.map((c) => (
+                        <option key={c} value={c}>
+                          {c}
+                        </option>
+                      ))}
                     </select>
                   </div>
 

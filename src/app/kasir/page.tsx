@@ -5,6 +5,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Badge } from '@/components/common/Badge';
 import { Product, formatRupiah } from '@/lib/mock-data';
 import { supabase } from '@/lib/supabase';
+import { getCustomCategories } from '@/lib/categories';
 import {
   Search,
   ShoppingCart,
@@ -36,6 +37,9 @@ export default function KasirPage() {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('Semua');
 
+  // Dynamic Categories State
+  const [categoryList, setCategoryList] = useState<string[]>([]);
+
   // Cart State
   const [cart, setCart] = useState<CartItem[]>([]);
   const [paymentMethod, setPaymentMethod] = useState<'Tunai' | 'Transfer' | 'QRIS'>('Tunai');
@@ -56,7 +60,18 @@ export default function KasirPage() {
     change?: number;
   } | null>(null);
 
-  const categories = ['Semua', 'Baju Putih', 'Celana', 'Pramuka', 'Aksesoris', 'Batik'];
+  // Sync Categories
+  const syncCategories = () => {
+    setCategoryList(getCustomCategories());
+  };
+
+  useEffect(() => {
+    syncCategories();
+    window.addEventListener('categories-updated', syncCategories);
+    return () => window.removeEventListener('categories-updated', syncCategories);
+  }, []);
+
+  const categories = useMemo(() => ['Semua', ...categoryList], [categoryList]);
 
   // Fetch products from Supabase
   const fetchProducts = async () => {
@@ -219,11 +234,19 @@ export default function KasirPage() {
       for (const item of cart) {
         const newStock = Math.max(0, item.product.stock - item.quantity);
         
-        // Update stock in items table
-        await supabase
-          .from('items')
-          .update({ stock: newStock })
-          .eq('id', item.product.id);
+        // Update stock in items table via Delete + Insert strategy
+        await supabase.from('items').delete().eq('id', item.product.id);
+        await supabase.from('items').insert({
+          id: item.product.id,
+          name: item.product.name,
+          category: item.product.category,
+          size: item.product.size,
+          price: item.product.price,
+          cost_price: item.product.costPrice,
+          stock: newStock,
+          min_stock: item.product.minStock,
+          sku: item.product.sku,
+        });
 
         // Insert stock_movement (type: keluar)
         await supabase.from('stock_movements').insert({
