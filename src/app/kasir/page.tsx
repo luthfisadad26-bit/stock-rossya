@@ -270,6 +270,10 @@ export default function KasirPage() {
         console.error('Error inserting cash entry:', cashErr);
       }
 
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('financials-reset'));
+      }
+
       // SET COMPLETED STATE & RESET CART
       setCompletedTx({
         invoiceNo,
