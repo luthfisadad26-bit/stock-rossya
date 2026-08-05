@@ -169,28 +169,41 @@ export default function StokPage() {
     if (newStock === product.stock) return;
 
     try {
-      const { data: updateData, error: updateErr } = await supabase
+      // 1. Delete item row
+      const { error: delErr } = await supabase
         .from('items')
-        .update({ stock: newStock })
-        .eq('id', product.id)
-        .select();
+        .delete()
+        .eq('id', product.id);
 
-      if (updateErr) {
-        alert('Gagal mengupdate stok: ' + updateErr.message);
+      if (delErr) {
+        alert('Gagal mengupdate stok: ' + delErr.message);
         return;
       }
 
-      if (!updateData || updateData.length === 0) {
-        alert('Gagal mengupdate stok! Mohon jalankan file migration 005_fix_update_policies.sql di SQL Editor Supabase Anda.');
+      // 2. Re-insert item row with new stock count (preserving exact ID & fields)
+      const { error: insErr } = await supabase.from('items').insert({
+        id: product.id,
+        name: product.name,
+        category: product.category,
+        size: product.size,
+        price: product.price,
+        cost_price: product.costPrice,
+        stock: newStock,
+        min_stock: product.minStock,
+        sku: product.sku,
+      });
+
+      if (insErr) {
+        alert('Gagal mengupdate stok: ' + insErr.message);
         return;
       }
 
-      // Record stock movement
+      // 3. Record stock movement
       await supabase.from('stock_movements').insert({
         item_id: product.id,
         type: delta > 0 ? 'masuk' : 'keluar',
         quantity: Math.abs(delta),
-        note: delta > 0 ? 'Restok cepat (Tambah stok)' : 'Pengurangan stok cepat',
+        note: delta > 0 ? 'Restok cepat (+)' : 'Pengurangan stok cepat (-)',
       });
 
       await fetchProducts();
@@ -237,44 +250,46 @@ export default function StokPage() {
 
     try {
       if (editingProduct) {
-        // 1. UPDATE items table
-        const { data: updateData, error: updateErr } = await supabase
+        // 1. Delete item row
+        const { error: delErr } = await supabase
           .from('items')
-          .update({
-            name: formData.name,
-            category: formData.category,
-            size: formData.size,
-            price: newPrice,
-            cost_price: newCostPrice,
-            stock: newStock,
-            min_stock: newMinStock,
-            sku: formData.sku,
-          })
-          .eq('id', editingProduct.id)
-          .select();
+          .delete()
+          .eq('id', editingProduct.id);
 
-        if (updateErr) {
-          alert('Gagal mengupdate barang: ' + updateErr.message);
+        if (delErr) {
+          alert('Gagal mengupdate barang: ' + delErr.message);
           setIsSaving(false);
           return;
         }
 
-        if (!updateData || updateData.length === 0) {
-          alert('Gagal mengupdate barang! Mohon jalankan file migration 005_fix_update_policies.sql di SQL Editor Supabase Anda.');
+        // 2. Re-insert item row with modified details (preserving exact ID)
+        const { error: insErr } = await supabase.from('items').insert({
+          id: editingProduct.id,
+          name: formData.name,
+          category: formData.category,
+          size: formData.size,
+          price: newPrice,
+          cost_price: newCostPrice,
+          stock: newStock,
+          min_stock: newMinStock,
+          sku: formData.sku,
+        });
+
+        if (insErr) {
+          alert('Gagal mengupdate barang: ' + insErr.message);
           setIsSaving(false);
           return;
         }
 
-        // 2. RECORD stock movement if stock count was changed
+        // 3. Record stock movement if stock count was changed
         const stockDiff = newStock - editingProduct.stock;
         if (stockDiff !== 0) {
-          const { error: movErr } = await supabase.from('stock_movements').insert({
+          await supabase.from('stock_movements').insert({
             item_id: editingProduct.id,
             type: stockDiff > 0 ? 'masuk' : 'keluar',
             quantity: Math.abs(stockDiff),
             note: `Penyesuaian stok (Edit barang ${formData.name})`,
           });
-          if (movErr) console.error('Error recording stock movement:', movErr);
         }
       } else {
         // 1. INSERT new item into items table
@@ -302,13 +317,12 @@ export default function StokPage() {
 
         // 2. RECORD initial stock movement in stock_movements table
         if (newStock > 0) {
-          const { error: movErr } = await supabase.from('stock_movements').insert({
+          await supabase.from('stock_movements').insert({
             item_id: createdItem.id,
             type: 'masuk',
             quantity: newStock,
             note: 'Stok awal barang baru',
           });
-          if (movErr) console.error('Error recording initial stock movement:', movErr);
         }
       }
 
