@@ -438,7 +438,7 @@ export default function KasirPage() {
 
         {/* CART & CHECKOUT PANEL (Right 5 or 4 columns Desktop - Sticky/Fixed) */}
         <div className="hidden lg:block lg:col-span-5 xl:col-span-4">
-          <div className="bg-white rounded-card border border-card-border shadow-sm p-5 space-y-4 sticky top-6">
+          <div className="bg-white rounded-card border border-card-border shadow-sm p-5 space-y-4 sticky top-6 max-h-[calc(100vh-3rem)] overflow-y-auto scrollbar-thin">
             <div className="flex items-center justify-between pb-3 border-b border-card-border">
               <div className="flex items-center gap-2">
                 <ShoppingCart className="w-5 h-5 text-navy" />
@@ -666,97 +666,105 @@ export default function KasirPage() {
               </div>
             </div>
           ) : (
-            <div className="space-y-4 max-h-[80vh] overflow-y-auto">
-              <div className="flex items-center justify-between pb-2 border-b border-card-border">
+            <div className="flex flex-col max-h-[85dvh]">
+              <div className="flex items-center justify-between pb-3 border-b border-card-border shrink-0">
                 <h3 className="font-heading font-bold text-navy text-sm">
-                  Detail Keranjang Belanja ({totalItemCount})
+                  Detail Keranjang ({totalItemCount})
                 </h3>
                 <button
                   onClick={() => setIsMobileCartExpanded(false)}
-                  className="p-1 text-gray-400 hover:text-navy"
+                  className="p-1 text-gray-400 hover:text-navy bg-gray-100 rounded-full"
                 >
                   <ChevronDown className="w-5 h-5" />
                 </button>
               </div>
 
-              {/* Items List Mobile */}
-              <div className="space-y-2">
-                {cart.map((item) => (
-                  <div
-                    key={item.product.id}
-                    className="flex items-center justify-between p-2 bg-offwhite rounded-xl text-xs"
-                  >
-                    <div>
-                      <p className="font-bold text-navy">{item.product.name}</p>
-                      <p className="text-[10px] text-gray-500">
-                        {formatRupiah(item.product.price)} x {item.quantity} ({item.product.size})
-                      </p>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <button
-                        onClick={() => updateQuantity(item.product.id, -1)}
-                        className="w-10 h-10 bg-white rounded-lg border border-card-border flex items-center justify-center font-bold text-navy shadow-sm active:bg-gray-100"
-                      >
-                        -
-                      </button>
-                      <span className="font-bold text-navy w-6 text-center">{item.quantity}</span>
-                      <button
-                        onClick={() => updateQuantity(item.product.id, 1)}
-                        className="w-10 h-10 bg-white rounded-lg border border-card-border flex items-center justify-center font-bold text-navy shadow-sm active:bg-gray-100"
-                      >
-                        +
-                      </button>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Mobile Payment Selector */}
-              <div className="space-y-2 pt-2 border-t border-card-border">
-                <label className="block text-xs font-bold text-navy">Metode Pembayaran</label>
-                <div className="grid grid-cols-3 gap-2">
-                  {['Tunai', 'Transfer', 'QRIS'].map((m) => (
-                    <button
-                      key={m}
-                      onClick={() =>
-                        setPaymentMethod(m as 'Tunai' | 'Transfer' | 'QRIS')
-                      }
-                      className={`py-3 text-xs rounded-xl border font-bold active:scale-95 transition-transform ${
-                        paymentMethod === m
-                          ? 'bg-navy text-white border-navy'
-                          : 'bg-offwhite text-navy border-card-border'
-                      }`}
+              {/* Scrollable Content */}
+              <div className="overflow-y-auto flex-1 py-4 space-y-4 scrollbar-thin">
+                {/* Items List Mobile */}
+                <div className="space-y-2">
+                  {cart.map((item) => (
+                    <div
+                      key={item.product.id}
+                      className="flex items-center justify-between p-2 bg-offwhite rounded-xl text-xs border border-card-border"
                     >
-                      {m}
-                    </button>
+                      <div className="pr-2 flex-1">
+                        <p className="font-bold text-navy leading-tight">{item.product.name}</p>
+                        <p className="text-[10px] text-gray-500 mt-0.5">
+                          {formatRupiah(item.product.price)} x {item.quantity} ({item.product.size})
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <button
+                          onClick={() => updateQuantity(item.product.id, -1)}
+                          className="w-8 h-8 bg-white rounded border border-card-border flex items-center justify-center font-bold text-navy shadow-sm active:bg-gray-100"
+                        >
+                          -
+                        </button>
+                        <span className="font-bold text-navy w-4 text-center">{item.quantity}</span>
+                        <button
+                          onClick={() => updateQuantity(item.product.id, 1)}
+                          className="w-8 h-8 bg-white rounded border border-card-border flex items-center justify-center font-bold text-navy shadow-sm active:bg-gray-100"
+                        >
+                          +
+                        </button>
+                      </div>
+                    </div>
                   ))}
                 </div>
 
-                {paymentMethod === 'Tunai' && (
-                  <input
-                    type="number"
-                    placeholder={`Nominal Uang Tunai (Minimal ${cartTotal})`}
-                    value={cashAmount}
-                    onChange={(e) => setCashAmount(e.target.value)}
-                    className="w-full p-2 bg-offwhite border border-card-border rounded-xl text-xs font-number"
-                  />
-                )}
+                {/* Mobile Payment Selector */}
+                <div className="space-y-3 pt-2 border-t border-card-border">
+                  <label className="block text-xs font-bold text-navy">Metode Pembayaran</label>
+                  <div className="grid grid-cols-3 gap-2">
+                    {['Tunai', 'Transfer', 'QRIS'].map((m) => (
+                      <button
+                        key={m}
+                        onClick={() =>
+                          setPaymentMethod(m as 'Tunai' | 'Transfer' | 'QRIS')
+                        }
+                        className={`py-2 text-xs rounded-xl border font-bold active:scale-95 transition-transform ${
+                          paymentMethod === m
+                            ? 'bg-navy text-white border-navy shadow-md'
+                            : 'bg-offwhite text-navy border-card-border'
+                        }`}
+                      >
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+
+                  {paymentMethod === 'Tunai' && (
+                    <div className="space-y-2 animate-in fade-in">
+                      <input
+                        type="number"
+                        placeholder={`Nominal Uang Tunai (Minimal ${cartTotal})`}
+                        value={cashAmount}
+                        onChange={(e) => setCashAmount(e.target.value)}
+                        className="w-full p-3 bg-offwhite border border-card-border rounded-xl text-sm font-number focus:outline-none focus:border-navy"
+                      />
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <button
-                disabled={cart.length === 0 || isProcessing}
-                onClick={handleCheckout}
-                className="w-full py-3 bg-maroon text-white font-bold text-sm rounded-xl shadow-md disabled:opacity-50 flex items-center justify-center gap-2"
-              >
-                {isProcessing ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <CheckCircle2 className="w-4 h-4" />
-                    <span>Bayar {formatRupiah(cartTotal)}</span>
-                  </>
-                )}
-              </button>
+              {/* Sticky Bottom Action */}
+              <div className="pt-3 border-t border-card-border shrink-0 bg-white">
+                <button
+                  disabled={cart.length === 0 || isProcessing}
+                  onClick={handleCheckout}
+                  className="w-full py-3.5 bg-maroon text-white font-bold text-sm rounded-xl shadow-lg disabled:opacity-50 flex items-center justify-center gap-2 active:scale-95 transition-transform"
+                >
+                  {isProcessing ? (
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                  ) : (
+                    <>
+                      <CheckCircle2 className="w-5 h-5" />
+                      <span>Proses Pembayaran ({totalItemCount})</span>
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           )}
         </div>
