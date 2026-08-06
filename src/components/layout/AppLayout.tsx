@@ -2,7 +2,8 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   LayoutDashboard,
   Package,
@@ -11,6 +12,9 @@ import {
   Store,
   Calendar,
   ChevronRight,
+  LogOut,
+  User,
+  Loader2,
 } from 'lucide-react';
 
 interface AppLayoutProps {
@@ -19,13 +23,33 @@ interface AppLayoutProps {
 
 export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   const pathname = usePathname();
+  const router = useRouter();
+  const { user, profile, loading, signOut } = useAuth();
 
-  const navItems = [
-    { label: 'Dashboard', href: '/', icon: LayoutDashboard },
-    { label: 'Stok Barang', href: '/stok', icon: Package },
-    { label: 'Kasir', href: '/kasir', icon: ShoppingCart },
-    { label: 'Keuangan', href: '/keuangan', icon: Wallet },
+  React.useEffect(() => {
+    if (!loading && !user) {
+      router.push('/login');
+    }
+  }, [user, loading, router]);
+
+  React.useEffect(() => {
+    if (!loading && profile?.role === 'kasir') {
+      if (pathname === '/keuangan' || pathname === '/') {
+        router.push('/kasir');
+      }
+    }
+  }, [profile, loading, pathname, router]);
+
+  const allNavItems = [
+    { label: 'Dashboard', href: '/', icon: LayoutDashboard, roles: ['owner'] },
+    { label: 'Stok Barang', href: '/stok', icon: Package, roles: ['owner', 'kasir'] },
+    { label: 'Kasir', href: '/kasir', icon: ShoppingCart, roles: ['owner', 'kasir'] },
+    { label: 'Keuangan', href: '/keuangan', icon: Wallet, roles: ['owner'] },
   ];
+
+  const navItems = allNavItems.filter((item) => 
+    item.roles.includes(profile?.role || '')
+  );
 
   // Indonesian Date string
   const todayDate = new Date().toLocaleDateString('id-ID', {
@@ -34,6 +58,14 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
     month: 'short',
     year: 'numeric',
   });
+
+  if (loading || !user) {
+    return (
+      <div className="min-h-screen bg-offwhite flex items-center justify-center">
+        <Loader2 className="w-8 h-8 text-navy animate-spin" />
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-offwhite text-navy flex flex-col md:flex-row">
@@ -78,12 +110,27 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
         </nav>
 
         {/* Sidebar Footer Info */}
-        <div className="p-4 m-4 rounded-xl bg-navy-800/80 border border-navy-800 text-xs text-gray-300">
-          <div className="flex items-center gap-2 mb-1 text-khaki font-medium">
-            <Calendar className="w-3.5 h-3.5" />
-            <span>Hari ini</span>
+        <div className="p-4 m-4 rounded-xl bg-navy-800 border border-navy-700 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-full bg-navy-600 flex items-center justify-center border border-navy-500">
+              <User className="w-4 h-4 text-khaki" />
+            </div>
+            <div className="overflow-hidden">
+              <p className="text-sm font-semibold text-white truncate max-w-[120px]">
+                {profile?.full_name || 'Admin'}
+              </p>
+              <p className="text-[10px] text-gray-400 uppercase tracking-wider font-mono">
+                {profile?.role || 'KASIR'}
+              </p>
+            </div>
           </div>
-          <p className="font-mono text-white text-xs">{todayDate}</p>
+          <button 
+            onClick={signOut}
+            className="p-2 rounded-lg hover:bg-maroon text-gray-400 hover:text-white transition-colors"
+            title="Keluar"
+          >
+            <LogOut className="w-4 h-4" />
+          </button>
         </div>
       </aside>
 
