@@ -153,10 +153,25 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
           </div>
 
           <div className="flex items-center gap-2">
-            <span className="text-xs font-mono bg-khaki-100 border border-khaki-300 text-khaki-700 px-3 py-1.5 rounded-full font-medium flex items-center gap-1.5">
+            <span className="hidden sm:flex text-xs font-mono bg-khaki-100 border border-khaki-300 text-khaki-700 px-3 py-1.5 rounded-full font-medium items-center gap-1.5">
               <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
               {todayDate}
             </span>
+            
+            {/* Mobile Profile & Logout */}
+            <div className="md:hidden flex items-center gap-2 pl-2 sm:border-l border-card-border">
+              <div className="text-right hidden min-[375px]:block">
+                <p className="text-[11px] font-bold text-navy leading-none mb-0.5">{profile?.full_name || 'Admin'}</p>
+                <p className="text-[9px] text-gray-500 uppercase tracking-wider font-mono">{profile?.role || 'KASIR'}</p>
+              </div>
+              <button 
+                onClick={signOut}
+                className="w-8 h-8 rounded-full bg-rose-50 border border-rose-100 text-rose-600 flex items-center justify-center active:bg-rose-200 transition-colors"
+                title="Keluar"
+              >
+                <LogOut className="w-3.5 h-3.5 ml-0.5" />
+              </button>
+            </div>
           </div>
         </header>
 
