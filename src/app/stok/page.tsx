@@ -151,9 +151,10 @@ export default function StokPage() {
   // Filter products based on search, category, and status
   const filteredProducts = useMemo(() => {
     return products.filter((item) => {
-      const matchesSearch =
-        item.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        item.sku.toLowerCase().includes(searchTerm.toLowerCase());
+      const searchWords = searchTerm.toLowerCase().split(' ').filter(Boolean);
+      const matchesSearch = searchWords.length === 0 || searchWords.every(word => 
+        item.name.toLowerCase().includes(word) || item.sku.toLowerCase().includes(word)
+      );
 
       const matchesCategory =
         selectedCategory === 'Semua' || item.category === selectedCategory;

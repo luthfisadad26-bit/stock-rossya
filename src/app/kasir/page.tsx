@@ -112,9 +112,10 @@ export default function KasirPage() {
   // Filter products
   const filteredProducts = useMemo(() => {
     return products.filter((p) => {
-      const matchesSearch =
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.sku.toLowerCase().includes(searchTerm.toLowerCase());
+      const searchWords = searchTerm.toLowerCase().split(' ').filter(Boolean);
+      const matchesSearch = searchWords.length === 0 || searchWords.every(word => 
+        p.name.toLowerCase().includes(word) || p.sku.toLowerCase().includes(word)
+      );
       const matchesCategory =
         selectedCategory === 'Semua' || p.category === selectedCategory;
       return matchesSearch && matchesCategory;
@@ -623,7 +624,10 @@ export default function KasirPage() {
         </div>
 
         {/* MOBILE STICKY BOTTOM SHEET (< lg screen) */}
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 z-40 bg-white border-t-2 border-card-border shadow-2xl rounded-t-2xl p-4 transition-all duration-300">
+        <div 
+          className="lg:hidden fixed left-0 right-0 bg-white border-t-2 border-card-border shadow-[0_-10px_40px_rgba(0,0,0,0.25)] rounded-t-3xl p-4 transition-all duration-300 z-50"
+          style={{ bottom: isMobileCartExpanded ? '0px' : '64px' }}
+        >
           {!isMobileCartExpanded ? (
             <div className="flex items-center justify-between">
               <div>
@@ -639,9 +643,9 @@ export default function KasirPage() {
                 {cart.length > 0 && (
                   <button
                     onClick={() => setIsMobileCartExpanded(true)}
-                    className="p-2.5 bg-offwhite border border-card-border text-navy rounded-xl flex items-center gap-1 text-xs font-semibold"
+                    className="px-4 py-2 bg-navy text-white rounded-xl flex items-center gap-1.5 text-xs font-bold animate-pulse"
                   >
-                    <span>Detail</span>
+                    <span>Lihat & Bayar</span>
                     <ChevronUp className="w-4 h-4" />
                   </button>
                 )}
@@ -691,14 +695,14 @@ export default function KasirPage() {
                     <div className="flex items-center gap-2">
                       <button
                         onClick={() => updateQuantity(item.product.id, -1)}
-                        className="w-6 h-6 bg-white rounded border border-card-border flex items-center justify-center font-bold text-navy"
+                        className="w-10 h-10 bg-white rounded-lg border border-card-border flex items-center justify-center font-bold text-navy shadow-sm active:bg-gray-100"
                       >
                         -
                       </button>
-                      <span className="font-bold text-navy">{item.quantity}</span>
+                      <span className="font-bold text-navy w-6 text-center">{item.quantity}</span>
                       <button
                         onClick={() => updateQuantity(item.product.id, 1)}
-                        className="w-6 h-6 bg-white rounded border border-card-border flex items-center justify-center font-bold text-navy"
+                        className="w-10 h-10 bg-white rounded-lg border border-card-border flex items-center justify-center font-bold text-navy shadow-sm active:bg-gray-100"
                       >
                         +
                       </button>
@@ -717,7 +721,7 @@ export default function KasirPage() {
                       onClick={() =>
                         setPaymentMethod(m as 'Tunai' | 'Transfer' | 'QRIS')
                       }
-                      className={`py-2 text-xs rounded-xl border font-semibold ${
+                      className={`py-3 text-xs rounded-xl border font-bold active:scale-95 transition-transform ${
                         paymentMethod === m
                           ? 'bg-navy text-white border-navy'
                           : 'bg-offwhite text-navy border-card-border'
