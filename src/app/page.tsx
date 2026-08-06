@@ -56,6 +56,7 @@ export default function DashboardPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<DashboardTx[]>([]);
+  const [cashEntries, setCashEntries] = useState<any[]>([]);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -120,6 +121,20 @@ export default function DashboardPage() {
       } else {
         setTransactions([]);
       }
+
+      // 3. Fetch Cash Entries (Masuk) to calculate total Omzet including non-Kasir
+      const { data: cashData } = await supabase
+        .from('cash_entries')
+        .select('id, amount, created_at')
+        .eq('type', 'Masuk')
+        .gte('created_at', cutoff)
+        .order('created_at', { ascending: false });
+
+      if (cashData) {
+        setCashEntries(cashData);
+      } else {
+        setCashEntries([]);
+      }
     } catch (err) {
       console.error('Gagal mengambil data dashboard:', err);
     } finally {
@@ -142,19 +157,23 @@ export default function DashboardPage() {
   const dashboardStats = useMemo(() => {
     const todayStr = getLocalDateStr(new Date());
 
-    // Total Overall Sales (synced with Keuangan)
-    const totalOmzet = transactions.reduce((sum, t) => sum + t.total, 0);
+    // Total Overall Sales (synced with Keuangan - all cash inflows)
+    const totalOmzet = cashEntries.reduce((sum, c) => sum + c.amount, 0);
     const totalCount = transactions.length;
 
     // Today's Sales (local timezone)
+    const todayCash = cashEntries.filter(
+      (c) => getLocalDateStr(c.created_at) === todayStr
+    );
+    const todayOmzet = todayCash.reduce((sum, c) => sum + c.amount, 0);
+
     const todayTxs = transactions.filter(
       (t) => getLocalDateStr(t.created_at) === todayStr
     );
-    const todayOmzet = todayTxs.reduce((sum, t) => sum + t.total, 0);
     const todayCount = todayTxs.length;
 
     return { totalOmzet, totalCount, todayOmzet, todayCount, todayTxs };
-  }, [transactions]);
+  }, [transactions, cashEntries]);
 
   // Calculate 7-Day Revenue Trend Chart Data using local timezone
   const dailyRevenueData = useMemo(() => {
@@ -170,17 +189,26 @@ export default function DashboardPage() {
       };
     });
 
+    // Add all cash inflows to revenue
+    cashEntries.forEach((c) => {
+      const cDateStr = getLocalDateStr(c.created_at);
+      const matchDay = last7Days.find((d) => d.dateStr === cDateStr);
+      if (matchDay) {
+        matchDay.revenue += c.amount;
+      }
+    });
+
+    // Add transaction counts
     transactions.forEach((tx) => {
       const txDateStr = getLocalDateStr(tx.created_at);
       const matchDay = last7Days.find((d) => d.dateStr === txDateStr);
       if (matchDay) {
-        matchDay.revenue += tx.total;
         matchDay.count += 1;
       }
     });
 
-    return last7Days;
-  }, [transactions]);
+    return last7Days.reverse();
+  }, [transactions, cashEntries]);
 
   return (
     <AppLayout>
