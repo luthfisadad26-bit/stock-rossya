@@ -6,7 +6,7 @@ import { AppLayout } from '@/components/layout/AppLayout';
 import { Badge } from '@/components/common/Badge';
 import { Product, formatRupiah, getStockStatus } from '@/lib/mock-data';
 import { supabase } from '@/lib/supabase';
-import { getResetTimestamp } from '@/lib/reset-helper';
+import { getDataCutoff } from '@/lib/reset-helper';
 import {
   TrendingUp,
   ShoppingBag,
@@ -70,7 +70,8 @@ export default function DashboardPage() {
         const mappedProducts: Product[] = itemsData.map((item: any) => ({
           id: item.id,
           name: item.name,
-          category: item.category as Product['category'],
+          category: item.name.toLowerCase().includes('rok') ? 'Rok' : item.category,
+          dbCategory: item.category,
           size: item.size,
           price: item.price,
           costPrice: item.cost_price,
@@ -81,8 +82,8 @@ export default function DashboardPage() {
         setProducts(mappedProducts);
       }
 
-      // 2. Fetch Transactions & Transaction Items (Filtered by Reset Cutoff)
-      const cutoff = getResetTimestamp();
+      // 2. Fetch Transactions & Transaction Items (exclude old seed data)
+      const cutoff = getDataCutoff();
       const { data: txData } = await supabase
         .from('transactions')
         .select(`
@@ -128,9 +129,6 @@ export default function DashboardPage() {
 
   useEffect(() => {
     fetchDashboardData();
-    const handleReset = () => fetchDashboardData();
-    window.addEventListener('financials-reset', handleReset);
-    return () => window.removeEventListener('financials-reset', handleReset);
   }, []);
 
   // Low stock products filter

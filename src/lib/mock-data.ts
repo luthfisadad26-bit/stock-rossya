@@ -1,7 +1,7 @@
 export interface Product {
   id: string;
   name: string;
-  category: 'Baju Putih' | 'Celana' | 'Pramuka' | 'Aksesoris' | 'Batik';
+  category: string;
   size: string;
   price: number;
   costPrice: number;

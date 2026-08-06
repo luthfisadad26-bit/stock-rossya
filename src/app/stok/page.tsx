@@ -127,7 +127,7 @@ export default function StokPage() {
         const mapped: Product[] = data.map((item: any) => ({
           id: item.id,
           name: item.name,
-          category: (item.name.toLowerCase().includes('rok') ? 'Rok' : item.category) as Product['category'],
+          category: item.category as Product['category'],
           size: item.size,
           price: item.price,
           costPrice: item.cost_price,
@@ -210,32 +210,14 @@ export default function StokPage() {
     if (newStock === product.stock) return;
 
     try {
-      // 1. Delete item row
-      const { error: delErr } = await supabase
+      // 1. Direct UPDATE stock (Requires Migration 005)
+      const { error: updErr } = await supabase
         .from('items')
-        .delete()
+        .update({ stock: newStock })
         .eq('id', product.id);
 
-      if (delErr) {
-        alert('Gagal mengupdate stok: ' + delErr.message);
-        return;
-      }
-
-      // 2. Re-insert item row with new stock count (preserving exact ID & fields)
-      const { error: insErr } = await supabase.from('items').insert({
-        id: product.id,
-        name: product.name,
-        category: product.category,
-        size: product.size,
-        price: product.price,
-        cost_price: product.costPrice,
-        stock: newStock,
-        min_stock: product.minStock,
-        sku: product.sku,
-      });
-
-      if (insErr) {
-        alert('Gagal mengupdate stok: ' + insErr.message);
+      if (updErr) {
+        alert('Gagal mengupdate stok: ' + updErr.message);
         return;
       }
 
@@ -291,33 +273,23 @@ export default function StokPage() {
 
     try {
       if (editingProduct) {
-        // 1. Delete item row
-        const { error: delErr } = await supabase
+        // 1. Update item row (Requires Migration 005)
+        const { error: updErr } = await supabase
           .from('items')
-          .delete()
+          .update({
+            name: formData.name,
+            category: formData.category,
+            size: formData.size,
+            price: newPrice,
+            cost_price: newCostPrice,
+            stock: newStock,
+            min_stock: newMinStock,
+            sku: formData.sku,
+          })
           .eq('id', editingProduct.id);
 
-        if (delErr) {
-          alert('Gagal mengupdate barang: ' + delErr.message);
-          setIsSaving(false);
-          return;
-        }
-
-        // 2. Re-insert item row with modified details (preserving exact ID)
-        const { error: insErr } = await supabase.from('items').insert({
-          id: editingProduct.id,
-          name: formData.name,
-          category: formData.category,
-          size: formData.size,
-          price: newPrice,
-          cost_price: newCostPrice,
-          stock: newStock,
-          min_stock: newMinStock,
-          sku: formData.sku,
-        });
-
-        if (insErr) {
-          alert('Gagal mengupdate barang: ' + insErr.message);
+        if (updErr) {
+          alert('Gagal mengupdate barang: ' + updErr.message);
           setIsSaving(false);
           return;
         }

@@ -4,7 +4,7 @@ import React, { useState, useEffect, useMemo } from 'react';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { formatRupiah } from '@/lib/mock-data';
 import { supabase } from '@/lib/supabase';
-import { getResetTimestamp, setResetTimestamp } from '@/lib/reset-helper';
+import { getDataCutoff } from '@/lib/reset-helper';
 import {
   Wallet,
   ArrowUpCircle,
@@ -16,7 +16,6 @@ import {
   Check,
   Loader2,
   FileSpreadsheet,
-  RotateCcw,
 } from 'lucide-react';
 import {
   PieChart,
@@ -74,9 +73,9 @@ export default function KeuanganPage() {
   const fetchKeuanganData = async () => {
     setLoading(true);
     try {
-      const cutoff = getResetTimestamp();
+      const cutoff = getDataCutoff();
 
-      // 1. Fetch Cash Entries (Filtered by Reset Cutoff)
+      // 1. Fetch Cash Entries (exclude old seed data)
       const { data: cashData } = await supabase
         .from('cash_entries')
         .select('*')
@@ -106,8 +105,10 @@ export default function KeuanganPage() {
 
       if (txItemsData) {
         txItemsData.forEach((row: any) => {
-          const catName = row.items?.category || 'Baju Putih';
-          catMap[catName] = (catMap[catName] || 0) + (row.subtotal || 0);
+          const rawCat = row.items?.category || 'Baju Putih';
+          // Map DB category to UI category for pie chart
+          const productName = ''; // We don't have product name here, so use raw category
+          catMap[rawCat] = (catMap[rawCat] || 0) + (row.subtotal || 0);
         });
       }
 
@@ -125,18 +126,8 @@ export default function KeuanganPage() {
     }
   };
 
-  const handleResetData = () => {
-    if (confirm('Apakah Anda yakin ingin mereset Laporan & Keuangan ke Rp 0? Semua transaksi lama akan di-reset dari 0.')) {
-      setResetTimestamp();
-      fetchKeuanganData();
-    }
-  };
-
   useEffect(() => {
     fetchKeuanganData();
-    const handleReset = () => fetchKeuanganData();
-    window.addEventListener('financials-reset', handleReset);
-    return () => window.removeEventListener('financials-reset', handleReset);
   }, []);
 
   // Calculate Financial Summary
@@ -178,9 +169,6 @@ export default function KeuanganPage() {
           amount: '',
           description: '',
         });
-        if (typeof window !== 'undefined') {
-          window.dispatchEvent(new Event('financials-reset'));
-        }
         await fetchKeuanganData();
       }
     } catch (err) {
@@ -224,23 +212,13 @@ export default function KeuanganPage() {
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              onClick={handleResetData}
-              className="inline-flex items-center justify-center gap-1.5 px-3.5 py-2.5 bg-offwhite hover:bg-rose-50 text-rose-700 font-medium text-xs sm:text-sm rounded-xl border border-rose-200 transition-all active:scale-95"
-              title="Reset Semua Angka Keuangan ke Rp 0"
-            >
-              <RotateCcw className="w-4 h-4" />
-              <span>Reset ke Rp 0</span>
-            </button>
-            <button
-              onClick={() => setIsCashModalOpen(true)}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-maroon hover:bg-maroon-700 text-white font-medium text-xs sm:text-sm rounded-xl transition-all shadow-md active:scale-95 w-full sm:w-auto"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Catat Kas Masuk/Keluar</span>
-            </button>
-          </div>
+          <button
+            onClick={() => setIsCashModalOpen(true)}
+            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-maroon hover:bg-maroon-700 text-white font-medium text-xs sm:text-sm rounded-xl transition-all shadow-md active:scale-95 w-full sm:w-auto"
+          >
+            <Plus className="w-4 h-4" />
+            <span>Catat Kas Masuk/Keluar</span>
+          </button>
         </div>
 
         {/* 3 FINANCIAL KPI CARDS */}

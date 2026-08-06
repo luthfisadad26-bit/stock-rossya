@@ -88,7 +88,7 @@ export default function KasirPage() {
         const mapped: Product[] = data.map((item: any) => ({
           id: item.id,
           name: item.name,
-          category: (item.name.toLowerCase().includes('rok') ? 'Rok' : item.category) as Product['category'],
+          category: item.category,
           size: item.size,
           price: item.price,
           costPrice: item.cost_price,
@@ -228,25 +228,25 @@ export default function KasirPage() {
 
       if (itemsErr) {
         console.error('Error inserting transaction items:', itemsErr);
+        alert('Gagal menyimpan detail barang transaksi: ' + itemsErr.message);
       }
 
       // 3. REDUCE ITEM STOCK & RECORD STOCK MOVEMENTS
+      const stockErrors: string[] = [];
       for (const item of cart) {
         const newStock = Math.max(0, item.product.stock - item.quantity);
         
-        // Update stock in items table via Delete + Insert strategy
-        await supabase.from('items').delete().eq('id', item.product.id);
-        await supabase.from('items').insert({
-          id: item.product.id,
-          name: item.product.name,
-          category: item.product.category,
-          size: item.product.size,
-          price: item.product.price,
-          cost_price: item.product.costPrice,
-          stock: newStock,
-          min_stock: item.product.minStock,
-          sku: item.product.sku,
-        });
+        // Direct UPDATE stock (Requires Migration 005 to work!)
+        const { error: updErr } = await supabase
+          .from('items')
+          .update({ stock: newStock })
+          .eq('id', item.product.id);
+
+        if (updErr) {
+          console.error(`Update stock failed for ${item.product.name}:`, updErr);
+          stockErrors.push(`Stok ${item.product.name} gagal diperbarui: ${updErr.message}`);
+          continue;
+        }
 
         // Insert stock_movement (type: keluar)
         await supabase.from('stock_movements').insert({
@@ -255,6 +255,10 @@ export default function KasirPage() {
           quantity: item.quantity,
           note: `Penjualan kasir (${invoiceNo})`,
         });
+      }
+
+      if (stockErrors.length > 0) {
+        alert('Peringatan stok:\n' + stockErrors.join('\n'));
       }
 
       // 4. CREATE CASH ENTRY (KAS MASUK)
@@ -268,6 +272,7 @@ export default function KasirPage() {
 
       if (cashErr) {
         console.error('Error inserting cash entry:', cashErr);
+        alert('Peringatan: Kas masuk gagal dicatat: ' + cashErr.message);
       }
 
       if (typeof window !== 'undefined') {
