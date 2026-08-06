@@ -173,7 +173,7 @@ export default function KasirPage() {
   }, [cart]);
 
   // Cash Change calculation
-  const cashNum = Number(cashAmount) || 0;
+  const cashNum = Number(cashAmount.replace(/\D/g, '')) || 0;
   const changeAmount = cashNum >= cartTotal ? cashNum - cartTotal : 0;
 
   // Handle Checkout Submit to Supabase
@@ -569,18 +569,22 @@ export default function KasirPage() {
                     )}
                   </div>
                   <input
-                    type="number"
-                    placeholder={`Minimal ${cartTotal}`}
+                    type="text"
+                    inputMode="numeric"
+                    placeholder={`Minimal ${formatRupiah(cartTotal)}`}
                     value={cashAmount}
-                    onChange={(e) => setCashAmount(e.target.value)}
+                    onChange={(e) => {
+                      const raw = e.target.value.replace(/\D/g, '');
+                      setCashAmount(raw ? new Intl.NumberFormat('id-ID').format(Number(raw)) : '');
+                    }}
                     className="w-full px-3 py-2 bg-white border border-card-border rounded-lg text-sm font-number focus:outline-none focus:border-navy"
                   />
                   {/* Quick Cash Buttons */}
-                  <div className="flex gap-1.5 overflow-x-auto pt-1 no-scrollbar">
+                  <div className="flex gap-1.5 overflow-x-auto pt-1 scrollbar-thin">
                     {[cartTotal, 50000, 100000, 200000].map((amt) => (
                       <button
                         key={amt}
-                        onClick={() => setCashAmount(String(amt))}
+                        onClick={() => setCashAmount(new Intl.NumberFormat('id-ID').format(amt))}
                         className="px-2 py-1 bg-white border border-card-border rounded text-[10px] font-number text-navy hover:bg-khaki-100 shrink-0"
                       >
                         {formatRupiah(amt)}
@@ -737,10 +741,14 @@ export default function KasirPage() {
                   {paymentMethod === 'Tunai' && (
                     <div className="space-y-2 animate-in fade-in">
                       <input
-                        type="number"
-                        placeholder={`Nominal Uang Tunai (Minimal ${cartTotal})`}
+                        type="text"
+                        inputMode="numeric"
+                        placeholder={`Nominal Uang (Min. ${formatRupiah(cartTotal)})`}
                         value={cashAmount}
-                        onChange={(e) => setCashAmount(e.target.value)}
+                        onChange={(e) => {
+                          const raw = e.target.value.replace(/\D/g, '');
+                          setCashAmount(raw ? new Intl.NumberFormat('id-ID').format(Number(raw)) : '');
+                        }}
                         className="w-full p-3 bg-offwhite border border-card-border rounded-xl text-sm font-number focus:outline-none focus:border-navy"
                       />
                     </div>
