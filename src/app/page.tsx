@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState, useEffect, useMemo } from 'react';
+import Link from 'next/link';
 import { AppLayout } from '@/components/layout/AppLayout';
 import { Badge } from '@/components/common/Badge';
 import { Product, formatRupiah, getStockStatus } from '@/lib/mock-data';
@@ -27,12 +28,6 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
-import Link from 'next/link';
-
-interface DashboardTxItem {
-  product_name: string;
-  quantity: number;
-}
 
 interface DashboardTx {
   id: string;
@@ -42,12 +37,24 @@ interface DashboardTx {
   status: string;
   total: number;
   created_at: string;
-  items: DashboardTxItem[];
+  items: {
+    product_name: string;
+    quantity: number;
+  }[];
+}
+
+// Helper to format date in local timezone YYYY-MM-DD
+function getLocalDateStr(dateInput: string | Date): string {
+  const d = new Date(dateInput);
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 export default function DashboardPage() {
-  const [loading, setLoading] = useState(true);
   const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<DashboardTx[]>([]);
 
   const fetchDashboardData = async () => {
@@ -133,25 +140,31 @@ export default function DashboardPage() {
     );
   }, [products]);
 
-  // Calculate Today's Omzet & Transaksi Count
-  const todayStats = useMemo(() => {
-    const todayStr = new Date().toISOString().slice(0, 10);
+  // Calculate Overall & Today's Stats in local timezone
+  const dashboardStats = useMemo(() => {
+    const todayStr = getLocalDateStr(new Date());
+
+    // Total Overall Sales (synced with Keuangan)
+    const totalOmzet = transactions.reduce((sum, t) => sum + t.total, 0);
+    const totalCount = transactions.length;
+
+    // Today's Sales (local timezone)
     const todayTxs = transactions.filter(
-      (t) => new Date(t.created_at).toISOString().slice(0, 10) === todayStr
+      (t) => getLocalDateStr(t.created_at) === todayStr
     );
-    const omzet = todayTxs.reduce((sum, t) => sum + t.total, 0);
-    const count = todayTxs.length;
-    const avg = count > 0 ? Math.round(omzet / count) : 0;
-    return { omzet, count, avg, todayTxs };
+    const todayOmzet = todayTxs.reduce((sum, t) => sum + t.total, 0);
+    const todayCount = todayTxs.length;
+
+    return { totalOmzet, totalCount, todayOmzet, todayCount, todayTxs };
   }, [transactions]);
 
-  // Calculate 7-Day Revenue Trend Chart Data
+  // Calculate 7-Day Revenue Trend Chart Data using local timezone
   const dailyRevenueData = useMemo(() => {
     const last7Days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - (6 - i));
       return {
-        dateStr: d.toISOString().slice(0, 10),
+        dateStr: getLocalDateStr(d),
         day: d.toLocaleDateString('id-ID', { weekday: 'short' }),
         date: d.toLocaleDateString('id-ID', { day: 'numeric', month: 'short' }),
         revenue: 0,
@@ -160,7 +173,7 @@ export default function DashboardPage() {
     });
 
     transactions.forEach((tx) => {
-      const txDateStr = new Date(tx.created_at).toISOString().slice(0, 10);
+      const txDateStr = getLocalDateStr(tx.created_at);
       const matchDay = last7Days.find((d) => d.dateStr === txDateStr);
       if (matchDay) {
         matchDay.revenue += tx.total;
@@ -179,14 +192,14 @@ export default function DashboardPage() {
           <div>
             <div className="flex items-center gap-2 flex-wrap">
               <h2 className="font-heading text-lg sm:text-2xl font-bold text-navy">
-                Ringkasan Toko Hari Ini
+                Ringkasan Toko Real-Time
               </h2>
               <span className="text-[11px] bg-emerald-100 text-emerald-800 px-2.5 py-0.5 rounded-full font-semibold">
-                Data Real-Time
+                Terhubung Database
               </span>
             </div>
             <p className="text-xs sm:text-sm text-gray-500 mt-0.5">
-              Pantau omzet, stok seragam, dan penjualan kasir secara langsung dari database.
+              Pantau omzet, stok seragam, dan penjualan kasir secara langsung.
             </p>
           </div>
           <div className="flex items-center gap-2">
@@ -208,24 +221,27 @@ export default function DashboardPage() {
           </div>
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4">
-            {/* Card 1: Omzet Hari Ini */}
+            {/* Card 1: Total Omzet Penjualan */}
             <div className="bg-white p-4 sm:p-5 rounded-card border border-card-border shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs font-medium text-gray-500">Omzet Hari Ini</span>
+                <span className="text-xs font-medium text-gray-500">Total Omzet Penjualan</span>
                 <div className="w-8 h-8 rounded-lg bg-emerald-50 text-emerald-700 flex items-center justify-center">
                   <TrendingUp className="w-4 h-4" />
                 </div>
               </div>
               <p className="font-number text-xl sm:text-2xl font-bold text-navy">
-                {formatRupiah(todayStats.omzet)}
+                {formatRupiah(dashboardStats.totalOmzet)}
               </p>
-              <div className="mt-2 flex items-center gap-1 text-[11px] text-emerald-700 font-medium">
-                <ArrowUpRight className="w-3.5 h-3.5" />
-                <span>Terhubung kasir hari ini</span>
+              <div className="mt-2 flex items-center justify-between text-[11px]">
+                <span className="text-emerald-700 font-medium flex items-center gap-0.5">
+                  <ArrowUpRight className="w-3.5 h-3.5" />
+                  Hari ini: {formatRupiah(dashboardStats.todayOmzet)}
+                </span>
+                <span className="text-gray-400">Sinkron Keuangan</span>
               </div>
             </div>
 
-            {/* Card 2: Total Transaksi */}
+            {/* Card 2: Total Penjualan */}
             <div className="bg-white p-4 sm:p-5 rounded-card border border-card-border shadow-sm hover:shadow-md transition-shadow">
               <div className="flex items-center justify-between mb-2">
                 <span className="text-xs font-medium text-gray-500">Total Penjualan</span>
@@ -234,10 +250,10 @@ export default function DashboardPage() {
                 </div>
               </div>
               <p className="font-number text-xl sm:text-2xl font-bold text-navy">
-                {todayStats.count} <span className="text-xs font-sans text-gray-500">Nota</span>
+                {dashboardStats.totalCount} <span className="text-xs font-sans text-gray-500">Nota</span>
               </p>
               <p className="mt-2 text-[11px] text-gray-500">
-                {todayStats.avg > 0 ? `Rata-rata ${formatRupiah(todayStats.avg)}/nota` : 'Belum ada transaksi hari ini'}
+                Hari ini: <span className="font-semibold text-navy">{dashboardStats.todayCount} Nota</span>
               </p>
             </div>
 
@@ -262,54 +278,45 @@ export default function DashboardPage() {
           </div>
         )}
 
-        {/* REVENUE CHART SECTION */}
+        {/* 7-DAY REVENUE TREND CHART */}
         <div className="bg-white p-4 sm:p-5 rounded-card border border-card-border shadow-sm">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-4">
+          <div className="flex items-center justify-between mb-4">
             <div>
-              <h3 className="font-heading font-bold text-navy text-base sm:text-lg">
+              <h3 className="font-heading font-bold text-navy text-sm sm:text-base">
                 Tren Omzet 7 Hari Terakhir
               </h3>
-              <p className="text-xs text-gray-500">
+              <p className="text-xs text-gray-500 mt-0.5">
                 Grafik omzet otomatis dihitung dari nota penjualan di database
               </p>
             </div>
-            <div className="flex items-center gap-2">
-              <span className="inline-block w-3 h-3 rounded-full bg-maroon"></span>
-              <span className="text-xs text-gray-600 font-medium">Omzet Penjualan (Rp)</span>
-            </div>
           </div>
 
-          <div className="h-56 sm:h-72 w-full pt-2">
+          <div className="h-64 w-full">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={dailyRevenueData} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="5%" stopColor="#8B2E3F" stopOpacity={0.4} />
-                    <stop offset="95%" stopColor="#8B2E3F" stopOpacity={0} />
+                    <stop offset="95%" stopColor="#8B2E3F" stopOpacity={0.0} />
                   </linearGradient>
                 </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E6E1D3" />
-                <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#1F2D50' }} />
+                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#E5E7EB" />
+                <XAxis dataKey="day" tick={{ fontSize: 11, fill: '#6B7280' }} />
                 <YAxis
-                  tick={{ fontSize: 10, fill: '#1F2D50' }}
-                  tickFormatter={(val) =>
-                    val >= 1000000
-                      ? `Rp${(val / 1000000).toFixed(1)}M`
-                      : `Rp${(val / 1000).toFixed(0)}k`
-                  }
+                  tick={{ fontSize: 10, fill: '#6B7280' }}
+                  tickFormatter={(v) => (v >= 1000 ? `Rp${v / 1000}k` : `Rp${v}`)}
                 />
                 <Tooltip
-                  formatter={(value: any) => [formatRupiah(Number(value)), 'Omzet']}
-                  labelFormatter={(label, payload) => {
-                    const data = payload && payload[0] ? payload[0].payload : null;
-                    return data ? `${label} (${data.date})` : label;
-                  }}
+                  formatter={(val: number) => [formatRupiah(val), 'Omzet Penjualan']}
+                  labelFormatter={(lbl) => `Hari: ${lbl}`}
                   contentStyle={{
-                    backgroundColor: '#FAF9F4',
-                    borderColor: '#E6E1D3',
-                    borderRadius: '12px',
+                    backgroundColor: '#1F2D50',
+                    color: '#fff',
+                    borderRadius: '8px',
                     fontSize: '12px',
+                    borderColor: '#1F2D50',
                   }}
+                  itemStyle={{ color: '#D9C9A3' }}
                 />
                 <Area
                   type="monotone"
@@ -324,163 +331,118 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        {/* TWO COLUMN GRID FOR TABLES / LISTS */}
+        {/* BOTTOM SECTION: LOW STOCK & RECENT SALES */}
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-5 sm:gap-6">
-          {/* STOK PERLU PERHATIAN */}
+          {/* Low Stock Alert List */}
           <div className="bg-white p-4 sm:p-5 rounded-card border border-card-border shadow-sm flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between pb-3 border-b border-card-border mb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-amber-50 text-amber-700 flex items-center justify-center">
-                    <AlertTriangle className="w-4 h-4" />
-                  </div>
-                  <h3 className="font-heading font-bold text-navy text-base">
+                  <AlertTriangle className="w-4 h-4 text-amber-600" />
+                  <h3 className="font-heading font-bold text-navy text-sm sm:text-base">
                     Stok Perlu Perhatian
                   </h3>
                 </div>
                 <Link
                   href="/stok"
-                  className="text-xs font-semibold text-maroon hover:underline flex items-center gap-1"
+                  className="text-xs text-navy font-semibold hover:underline flex items-center gap-0.5"
                 >
-                  <span>Kelola Stok</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
+                  Kelola Stok <ChevronRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
 
-              {lowStockProducts.length === 0 ? (
-                <div className="py-8 text-center text-gray-400 space-y-1">
-                  <CheckCircle2 className="w-8 h-8 text-emerald-600 mx-auto" />
-                  <p className="text-xs font-semibold text-emerald-800">
-                    Semua stok barang dalam kondisi aman.
-                  </p>
+              {loading ? (
+                <div className="py-6 text-center text-xs text-gray-400">Memuat stok...</div>
+              ) : lowStockProducts.length === 0 ? (
+                <div className="py-8 text-center space-y-1">
+                  <CheckCircle2 className="w-8 h-8 text-emerald-500 mx-auto mb-1" />
+                  <p className="text-xs font-semibold text-navy">Semua stok seragam aman!</p>
                   <p className="text-[11px] text-gray-400">
-                    Tidak ada barang yang menipis atau habis saat ini.
+                    Tidak ada barang yang menipis di bawah batas minimum.
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
-                  {lowStockProducts.slice(0, 5).map((item) => (
+                <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
+                  {lowStockProducts.slice(0, 5).map((product) => (
                     <div
-                      key={item.id}
-                      className="flex items-center justify-between p-3 rounded-xl bg-offwhite border border-card-border hover:border-navy-100 transition-colors"
+                      key={product.id}
+                      className="flex items-center justify-between p-2.5 bg-offwhite rounded-xl border border-card-border"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-9 h-9 rounded-lg bg-white border border-card-border flex items-center justify-center text-navy font-bold text-xs shrink-0">
-                          {item.category.slice(0, 4)}
-                        </div>
-                        <div className="min-w-0">
-                          <h4 className="font-medium text-xs sm:text-sm text-navy truncate">
-                            {item.name}
-                          </h4>
-                          <p className="text-[11px] text-gray-500 truncate">
-                            Ukuran: <span className="font-semibold text-navy">{item.size}</span> | SKU: {item.sku}
-                          </p>
-                        </div>
-                      </div>
-
-                      <div className="text-right shrink-0 ml-2">
-                        <p className="font-number text-xs sm:text-sm font-bold text-navy">
-                          Sisa: {item.stock} pcs
+                      <div>
+                        <p className="font-heading font-bold text-navy text-xs">
+                          {product.name}
                         </p>
-                        <Badge stock={item.stock} minStock={item.minStock} />
+                        <p className="text-[10px] text-gray-500">
+                          {product.category} &bull; Size {product.size}
+                        </p>
                       </div>
+                      <Badge stock={product.stock} minStock={product.minStock} />
                     </div>
                   ))}
                 </div>
               )}
             </div>
-
-            <div className="mt-4 pt-3 border-t border-card-border text-center">
-              <Link
-                href="/stok"
-                className="text-xs text-navy font-medium hover:text-maroon transition-colors"
-              >
-                + Kelola {lowStockProducts.length} barang di halaman Stok
-              </Link>
-            </div>
           </div>
 
-          {/* TRANSAKSI TERBARU HARI INI */}
+          {/* Recent Sales List */}
           <div className="bg-white p-4 sm:p-5 rounded-card border border-card-border shadow-sm flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center justify-between pb-3 border-b border-card-border mb-3">
                 <div className="flex items-center gap-2">
-                  <div className="w-7 h-7 rounded-lg bg-navy-50 text-navy flex items-center justify-center">
-                    <Receipt className="w-4 h-4" />
-                  </div>
-                  <h3 className="font-heading font-bold text-navy text-base">
+                  <Receipt className="w-4 h-4 text-navy" />
+                  <h3 className="font-heading font-bold text-navy text-sm sm:text-base">
                     Penjualan Terbaru
                   </h3>
                 </div>
                 <Link
                   href="/kasir"
-                  className="text-xs font-semibold text-maroon hover:underline flex items-center gap-1"
+                  className="text-xs text-navy font-semibold hover:underline flex items-center gap-0.5"
                 >
-                  <span>Ke Kasir</span>
-                  <ChevronRight className="w-3.5 h-3.5" />
+                  Ke Kasir <ChevronRight className="w-3.5 h-3.5" />
                 </Link>
               </div>
 
-              {transactions.length === 0 ? (
-                <div className="py-8 text-center text-gray-400 space-y-1">
-                  <Receipt className="w-8 h-8 text-gray-300 mx-auto" />
-                  <p className="text-xs font-semibold text-navy">Belum ada transaksi penjualan.</p>
+              {loading ? (
+                <div className="py-6 text-center text-xs text-gray-400">Memuat transaksi...</div>
+              ) : transactions.length === 0 ? (
+                <div className="py-8 text-center space-y-1">
+                  <Package className="w-8 h-8 text-gray-300 mx-auto mb-1" />
+                  <p className="text-xs font-semibold text-navy">Belum ada penjualan tercatat</p>
                   <p className="text-[11px] text-gray-400">
-                    Buka Kasir POS untuk melakukan transaksi pertama.
+                    Buka Kasir POS untuk mulai memasukkan transaksi pertama.
                   </p>
                 </div>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-2.5 max-h-60 overflow-y-auto pr-1">
                   {transactions.slice(0, 5).map((tx) => (
                     <div
                       key={tx.id}
-                      className="p-3 rounded-xl bg-offwhite border border-card-border flex flex-col sm:flex-row sm:items-center justify-between gap-2"
+                      className="flex items-center justify-between p-2.5 bg-offwhite rounded-xl border border-card-border text-xs"
                     >
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <span className="font-mono text-xs font-bold text-navy">
+                      <div>
+                        <div className="flex items-center gap-1.5">
+                          <span className="font-mono font-bold text-navy">
                             {tx.invoice_no}
                           </span>
-                          <span className="text-[10px] px-2 py-0.5 rounded-md bg-white border border-card-border font-medium text-gray-600">
+                          <span className="text-[10px] bg-khaki-100 text-khaki-700 px-1.5 py-0.5 rounded font-medium">
                             {tx.payment_method}
                           </span>
-                          {tx.customer_name && (
-                            <span className="text-[10px] text-gray-500 font-medium truncate">
-                              ({tx.customer_name})
-                            </span>
-                          )}
                         </div>
-                        <p className="text-[11px] text-gray-500 mt-1 truncate">
-                          {tx.items && tx.items.length > 0
-                            ? tx.items.map((i) => `${i.product_name} (${i.quantity}x)`).join(', ')
-                            : 'Transaksi POS'}
-                        </p>
-                      </div>
-
-                      <div className="flex sm:flex-col justify-between sm:items-end border-t sm:border-t-0 pt-2 sm:pt-0 border-card-border shrink-0">
-                        <span className="text-[11px] text-gray-400">
+                        <p className="text-[11px] text-gray-500 mt-0.5">
+                          {tx.customer_name || 'Pembeli Umum'} &bull;{' '}
                           {new Date(tx.created_at).toLocaleTimeString('id-ID', {
                             hour: '2-digit',
                             minute: '2-digit',
                           })}
-                        </span>
-                        <span className="font-number text-xs sm:text-sm font-bold text-navy">
-                          {formatRupiah(tx.total)}
-                        </span>
+                        </p>
                       </div>
+                      <span className="font-number font-bold text-navy">
+                        {formatRupiah(tx.total)}
+                      </span>
                     </div>
                   ))}
                 </div>
               )}
-            </div>
-
-            <div className="mt-4 pt-3 border-t border-card-border text-center">
-              <Link
-                href="/kasir"
-                className="text-xs text-navy font-medium hover:text-maroon transition-colors"
-              >
-                Buat transaksi baru di Kasir POS
-              </Link>
             </div>
           </div>
         </div>
