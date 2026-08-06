@@ -1,4 +1,4 @@
-// Default reset cutoff to August 1st 2026 so old 2023 dummy sample data is excluded, but all current 2026 transactions are included!
+// Default reset cutoff to August 1st 2026 so old 2023 dummy sample data is excluded
 const DEFAULT_RESET_TIME = '2026-08-01T00:00:00.000Z';
 
 export function getResetTimestamp(): string {
@@ -11,7 +11,8 @@ export function getResetTimestamp(): string {
 }
 
 export function setResetTimestamp(): string {
-  const now = new Date().toISOString();
+  // Subtract 60 seconds buffer to guarantee any new cash entry or sale created right after reset is included!
+  const now = new Date(Date.now() - 60000).toISOString();
   if (typeof window !== 'undefined') {
     try {
       localStorage.setItem('rossya_reset_timestamp', now);

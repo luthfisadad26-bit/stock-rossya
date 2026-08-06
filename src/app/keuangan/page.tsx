@@ -178,6 +178,9 @@ export default function KeuanganPage() {
           amount: '',
           description: '',
         });
+        if (typeof window !== 'undefined') {
+          window.dispatchEvent(new Event('financials-reset'));
+        }
         await fetchKeuanganData();
       }
     } catch (err) {
