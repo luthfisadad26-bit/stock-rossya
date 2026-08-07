@@ -1,5 +1,5 @@
 import React from 'react';
-import { formatRupiah } from '@/lib/utils';
+import { formatRupiah } from '@/lib/mock-data';
 
 export interface ReceiptItem {
   name: string;
