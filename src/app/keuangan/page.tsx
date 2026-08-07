@@ -68,6 +68,7 @@ export default function KeuanganPage() {
     category: 'Biaya Operasional',
     amount: '',
     description: '',
+    date: new Date().toISOString().split('T')[0],
   });
 
   // Fetch Financial Data from Supabase
@@ -183,11 +184,16 @@ export default function KeuanganPage() {
     setIsSaving(true);
 
     try {
+      // Convert YYYY-MM-DD to ISO string for timestamptz
+      // We append T12:00:00Z to avoid timezone shifting to previous day
+      const dateString = cashForm.date ? `${cashForm.date}T12:00:00Z` : new Date().toISOString();
+
       const { error } = await supabase.from('cash_entries').insert({
         type: cashForm.type,
         category: cashForm.category,
         amount: Number(cashForm.amount),
         description: cashForm.description,
+        created_at: dateString,
       });
 
       if (error) {
@@ -199,6 +205,7 @@ export default function KeuanganPage() {
           category: 'Biaya Operasional',
           amount: '',
           description: '',
+          date: new Date().toISOString().split('T')[0],
         });
         await fetchKeuanganData();
       }
@@ -557,20 +564,37 @@ export default function KeuanganPage() {
                   </div>
                 </div>
 
-                <div>
-                  <label className="block text-xs font-semibold text-navy mb-1">
-                    Nominal Rp *
-                  </label>
-                  <input
-                    type="number"
-                    required
-                    placeholder="Contoh: 150000"
-                    value={cashForm.amount}
-                    onChange={(e) =>
-                      setCashForm({ ...cashForm, amount: e.target.value })
-                    }
-                    className="w-full px-3 py-2 bg-offwhite border border-card-border rounded-xl text-sm font-number focus:outline-none focus:border-navy"
-                  />
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-navy mb-1">
+                      Tanggal *
+                    </label>
+                    <input
+                      type="date"
+                      required
+                      value={cashForm.date}
+                      onChange={(e) =>
+                        setCashForm({ ...cashForm, date: e.target.value })
+                      }
+                      className="w-full px-3 py-2 bg-offwhite border border-card-border rounded-xl text-sm focus:outline-none focus:border-navy"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-navy mb-1">
+                      Nominal Rp *
+                    </label>
+                    <input
+                      type="number"
+                      required
+                      placeholder="Contoh: 150000"
+                      value={cashForm.amount}
+                      onChange={(e) =>
+                        setCashForm({ ...cashForm, amount: e.target.value })
+                      }
+                      className="w-full px-3 py-2 bg-offwhite border border-card-border rounded-xl text-sm font-number focus:outline-none focus:border-navy"
+                    />
+                  </div>
                 </div>
 
                 <div>
