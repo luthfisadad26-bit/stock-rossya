@@ -6,6 +6,7 @@ import { Badge } from '@/components/common/Badge';
 import { Product, formatRupiah } from '@/lib/mock-data';
 import { supabase } from '@/lib/supabase';
 import { getCustomCategories } from '@/lib/categories';
+import ReceiptPrint from '@/components/kasir/ReceiptPrint';
 import {
   Search,
   ShoppingCart,
@@ -308,7 +309,7 @@ export default function KasirPage() {
 
   return (
     <AppLayout>
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 relative">
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 sm:gap-6 relative hide-on-print">
         {/* CATALOG SECTION (Left 7 or 8 columns on Desktop) */}
         <div className="lg:col-span-7 xl:col-span-8 space-y-4">
           {/* Header & Search */}
@@ -779,7 +780,7 @@ export default function KasirPage() {
 
         {/* MODAL STRUK (RECEIPT MODAL AFTER SUCCESSFUL CHECKOUT) */}
         {completedTx && (
-          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 hide-on-print">
             <div className="bg-white w-full max-w-sm rounded-card shadow-2xl border border-card-border overflow-hidden animate-in fade-in zoom-in duration-200">
               {/* Header Struk */}
               <div className="bg-navy text-white p-5 text-center space-y-1 relative">
@@ -852,7 +853,7 @@ export default function KasirPage() {
                 <div className="pt-3 flex gap-2">
                   <button
                     onClick={() => {
-                      alert('Fungsi cetak struk terhubung ke printer thermal.');
+                      window.print();
                     }}
                     className="flex-1 py-2 bg-offwhite border border-card-border text-navy rounded-xl font-semibold flex items-center justify-center gap-1.5 hover:bg-khaki-100 text-xs"
                   >
@@ -869,6 +870,31 @@ export default function KasirPage() {
               </div>
             </div>
           </div>
+        )}
+      </div>
+
+      {/* STRUK PRINT COMPONENT (ONLY VISIBLE DURING PRINT) */}
+      <div className="hidden print:block print-only">
+        {completedTx && (
+          <ReceiptPrint
+            data={{
+              invoiceNo: completedTx.invoiceNo,
+              date: todayDate,
+              customerName: completedTx.customerName,
+              cashierName: profile?.full_name || 'Kasir',
+              paymentMethod: completedTx.paymentMethod,
+              total: completedTx.total,
+              cashReceived: completedTx.cashAmount,
+              changeAmount: completedTx.change,
+              items: completedTx.items.map((i) => ({
+                name: i.product.name,
+                qty: i.quantity,
+                price: i.product.price,
+                subtotal: i.product.price * i.quantity,
+                size: i.product.size,
+              })),
+            }}
+          />
         )}
       </div>
     </AppLayout>

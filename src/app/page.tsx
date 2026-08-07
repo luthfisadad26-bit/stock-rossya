@@ -18,6 +18,7 @@ import {
   PlusCircle,
   Loader2,
   CheckCircle2,
+  Printer,
 } from 'lucide-react';
 import {
   AreaChart,
@@ -28,6 +29,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import ReceiptPrint from '@/components/kasir/ReceiptPrint';
 
 interface DashboardTx {
   id: string;
@@ -40,6 +42,9 @@ interface DashboardTx {
   items: {
     product_name: string;
     quantity: number;
+    price: number;
+    subtotal: number;
+    size: string;
   }[];
 }
 
@@ -57,6 +62,7 @@ export default function DashboardPage() {
   const [loading, setLoading] = useState(true);
   const [transactions, setTransactions] = useState<DashboardTx[]>([]);
   const [cashEntries, setCashEntries] = useState<any[]>([]);
+  const [selectedTxForPrint, setSelectedTxForPrint] = useState<DashboardTx | null>(null);
 
   const fetchDashboardData = async () => {
     setLoading(true);
@@ -97,7 +103,10 @@ export default function DashboardPage() {
           created_at,
           transaction_items (
             product_name,
-            quantity
+            quantity,
+            price,
+            subtotal,
+            size
           )
         `)
         .gte('created_at', cutoff)
@@ -115,6 +124,9 @@ export default function DashboardPage() {
           items: (t.transaction_items || []).map((ti: any) => ({
             product_name: ti.product_name,
             quantity: ti.quantity,
+            price: ti.price || 0,
+            subtotal: ti.subtotal || 0,
+            size: ti.size || '',
           })),
         }));
         setTransactions(mappedTx);
@@ -212,7 +224,7 @@ export default function DashboardPage() {
 
   return (
     <AppLayout>
-      <div className="space-y-5 sm:space-y-6">
+      <div className="space-y-5 sm:space-y-6 pb-6 hide-on-print">
         {/* HEADER WELCOME & QUICK ACTION */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white p-4 sm:p-5 rounded-card border border-card-border shadow-sm">
           <div>
@@ -462,9 +474,23 @@ export default function DashboardPage() {
                           })}
                         </p>
                       </div>
-                      <span className="font-number font-bold text-navy">
-                        {formatRupiah(tx.total)}
-                      </span>
+                      <div className="flex items-center gap-3">
+                        <span className="font-number font-bold text-navy">
+                          {formatRupiah(tx.total)}
+                        </span>
+                        <button
+                          onClick={() => {
+                            setSelectedTxForPrint(tx);
+                            setTimeout(() => {
+                              window.print();
+                            }, 100);
+                          }}
+                          className="p-1.5 bg-white border border-card-border rounded-lg text-navy hover:bg-khaki-100"
+                          title="Cetak Ulang Struk"
+                        >
+                          <Printer className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
                     </div>
                   ))}
                 </div>
@@ -472,6 +498,29 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
+      </div>
+
+      {/* STRUK PRINT COMPONENT (ONLY VISIBLE DURING PRINT) */}
+      <div className="hidden print:block print-only">
+        {selectedTxForPrint && (
+          <ReceiptPrint
+            data={{
+              invoiceNo: selectedTxForPrint.invoice_no,
+              date: new Date(selectedTxForPrint.created_at).toLocaleDateString('id-ID'),
+              customerName: selectedTxForPrint.customer_name,
+              cashierName: profile?.full_name || 'Kasir',
+              paymentMethod: selectedTxForPrint.payment_method,
+              total: selectedTxForPrint.total,
+              items: selectedTxForPrint.items.map((i) => ({
+                name: i.product_name,
+                qty: i.quantity,
+                price: i.price,
+                subtotal: i.subtotal,
+                size: i.size,
+              })),
+            }}
+          />
+        )}
       </div>
     </AppLayout>
   );

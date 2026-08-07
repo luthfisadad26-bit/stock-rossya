@@ -27,3 +27,28 @@
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+@media print {
+  @page {
+    margin: 0;
+    size: 58mm auto;
+  }
+  
+  body {
+    background-color: white !important;
+    color: black !important;
+  }
+
+  /* Hide navigation and standard UI */
+  aside, header, nav, .hide-on-print {
+    display: none !important;
+  }
+
+  /* Show only the print container */
+  .print-only {
+    display: block !important;
+    width: 58mm;
+    margin: 0;
+    padding: 0;
+  }
+}

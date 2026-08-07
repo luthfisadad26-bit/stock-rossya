@@ -68,7 +68,7 @@ export const AppLayout: React.FC<AppLayoutProps> = ({ children }) => {
   }
 
   return (
-    <div className="min-h-screen bg-offwhite text-navy flex flex-col md:flex-row">
+    <div className="min-h-screen bg-offwhite text-navy flex flex-col md:flex-row main-layout-root">
       {/* DESKTOP SIDEBAR (Visible md and above) */}
       <aside className="hidden md:flex flex-col w-64 bg-navy text-white min-h-screen fixed left-0 top-0 bottom-0 z-30 shadow-lg">
         {/* Brand Logo & Title */}
