@@ -645,28 +645,18 @@ export default function KasirPage() {
               </div>
 
               <div className="flex items-center gap-2">
-                {cart.length > 0 && (
-                  <button
-                    onClick={() => setIsMobileCartExpanded(true)}
-                    className="px-4 py-2 bg-navy text-white rounded-xl flex items-center gap-1.5 text-xs font-bold animate-pulse"
-                  >
-                    <span>Lihat & Bayar</span>
-                    <ChevronUp className="w-4 h-4" />
-                  </button>
-                )}
                 <button
-                  disabled={cart.length === 0 || isProcessing}
-                  onClick={handleCheckout}
-                  className="px-5 py-2.5 bg-maroon text-white font-bold text-xs rounded-xl shadow-md disabled:opacity-50 flex items-center gap-1.5"
+                  disabled={cart.length === 0}
+                  onClick={() => {
+                    setIsMobileCartExpanded(true);
+                    setTimeout(() => {
+                      document.getElementById('mobile-payment-section')?.scrollIntoView({ behavior: 'smooth' });
+                    }, 300);
+                  }}
+                  className="px-6 py-2.5 bg-maroon text-white font-bold text-sm rounded-xl shadow-md disabled:opacity-50 flex items-center gap-1.5"
                 >
-                  {isProcessing ? (
-                    <Loader2 className="w-4 h-4 animate-spin" />
-                  ) : (
-                    <>
-                      <span>Bayar</span>
-                      <CheckCircle2 className="w-4 h-4" />
-                    </>
-                  )}
+                  <span>Bayar</span>
+                  <ChevronUp className="w-5 h-5" />
                 </button>
               </div>
             </div>
@@ -719,7 +709,7 @@ export default function KasirPage() {
                 </div>
 
                 {/* Mobile Payment Selector */}
-                <div className="space-y-3 pt-2 border-t border-card-border">
+                <div id="mobile-payment-section" className="space-y-3 pt-2 border-t border-card-border">
                   <label className="block text-xs font-bold text-navy">Metode Pembayaran</label>
                   <div className="grid grid-cols-3 gap-2">
                     {['Tunai', 'Transfer', 'QRIS'].map((m) => (
@@ -752,6 +742,18 @@ export default function KasirPage() {
                         }}
                         className="w-full p-3 bg-offwhite border border-card-border rounded-xl text-sm font-number focus:outline-none focus:border-navy"
                       />
+                      {/* Quick Cash Buttons */}
+                      <div className="flex gap-1.5 overflow-x-auto pt-1 pb-1 scrollbar-thin">
+                        {[cartTotal, 50000, 100000, 200000].map((amt) => (
+                          <button
+                            key={amt}
+                            onClick={() => setCashAmount(new Intl.NumberFormat('id-ID').format(amt))}
+                            className="px-3 py-1.5 bg-white border border-card-border rounded-lg text-[11px] font-number text-navy hover:bg-khaki-100 shrink-0"
+                          >
+                            {formatRupiah(amt)}
+                          </button>
+                        ))}
+                      </div>
                     </div>
                   )}
                 </div>
