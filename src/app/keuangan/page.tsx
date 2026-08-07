@@ -16,6 +16,7 @@ import {
   Check,
   Loader2,
   FileSpreadsheet,
+  Trash2
 } from 'lucide-react';
 import {
   PieChart,
@@ -112,7 +113,7 @@ export default function KeuanganPage() {
         });
       }
 
-      const pieData: CategoryRevenue[] = Object.keys(catMap).map((cat) => ({
+      const pieData = Object.keys(catMap).map((cat) => ({
         category: cat,
         value: catMap[cat],
         color: CATEGORY_COLORS[cat] || '#1F2D50',
@@ -123,6 +124,36 @@ export default function KeuanganPage() {
       console.error('Gagal mengambil data keuangan:', err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const [isResetting, setIsResetting] = useState(false);
+
+  const handleResetData = async () => {
+    if (!window.confirm("YAKIN INGIN MENGHAPUS SEMUA DATA TRANSAKSI DAN KEUANGAN?\n\nSemua riwayat kasir, laporan omzet, dan kas akan direset menjadi 0. Data Barang/Katalog TETAP AMAN.\n\nTindakan ini tidak bisa dibatalkan!")) {
+      return;
+    }
+    
+    setIsResetting(true);
+    try {
+      // 1. Delete transactions (will cascade to transaction_items)
+      await supabase.from('transactions').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      // 2. Delete cash entries
+      await supabase.from('cash_entries').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      // 3. Delete stock movements
+      await supabase.from('stock_movements').delete().neq('id', '00000000-0000-0000-0000-000000000000');
+      
+      alert('Data transaksi dan keuangan berhasil di-reset menjadi 0!');
+      // Dispatch event to also update Dashboard if needed, though they will just refresh
+      if (typeof window !== 'undefined') {
+        window.dispatchEvent(new Event('financials-reset'));
+      }
+      fetchKeuanganData();
+    } catch (err) {
+      console.error(err);
+      alert('Gagal mereset data');
+    } finally {
+      setIsResetting(false);
     }
   };
 
@@ -212,13 +243,24 @@ export default function KeuanganPage() {
             </p>
           </div>
 
-          <button
-            onClick={() => setIsCashModalOpen(true)}
-            className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-maroon hover:bg-maroon-700 text-white font-medium text-xs sm:text-sm rounded-xl transition-all shadow-md active:scale-95 w-full sm:w-auto"
-          >
-            <Plus className="w-4 h-4" />
-            <span>Catat Kas Masuk/Keluar</span>
-          </button>
+          <div className="flex flex-col sm:flex-row gap-2 w-full sm:w-auto">
+            <button
+              onClick={handleResetData}
+              disabled={isResetting || loading}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-rose-100 hover:bg-rose-200 text-rose-700 font-medium text-xs sm:text-sm rounded-xl transition-all shadow-sm active:scale-95 disabled:opacity-50"
+              title="Hapus semua riwayat transaksi untuk testing"
+            >
+              {isResetting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Trash2 className="w-4 h-4" />}
+              <span>{isResetting ? 'Mereset...' : 'Reset Data (Jadi 0)'}</span>
+            </button>
+            <button
+              onClick={() => setIsCashModalOpen(true)}
+              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 bg-maroon hover:bg-maroon-700 text-white font-medium text-xs sm:text-sm rounded-xl transition-all shadow-md active:scale-95 w-full sm:w-auto"
+            >
+              <Plus className="w-4 h-4" />
+              <span>Catat Kas Masuk/Keluar</span>
+            </button>
+          </div>
         </div>
 
         {/* 3 FINANCIAL KPI CARDS */}
