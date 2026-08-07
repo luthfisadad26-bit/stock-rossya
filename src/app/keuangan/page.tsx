@@ -191,7 +191,7 @@ export default function KeuanganPage() {
       const { error } = await supabase.from('cash_entries').insert({
         type: cashForm.type,
         category: cashForm.category,
-        amount: Number(cashForm.amount),
+        amount: Number(cashForm.amount.replace(/\D/g, '')),
         description: cashForm.description,
         created_at: dateString,
       });
@@ -585,13 +585,18 @@ export default function KeuanganPage() {
                       Nominal Rp *
                     </label>
                     <input
-                      type="number"
+                      type="text"
+                      inputMode="numeric"
                       required
-                      placeholder="Contoh: 150000"
+                      placeholder="Contoh: 150.000"
                       value={cashForm.amount}
-                      onChange={(e) =>
-                        setCashForm({ ...cashForm, amount: e.target.value })
-                      }
+                      onChange={(e) => {
+                        const raw = e.target.value.replace(/\D/g, '');
+                        setCashForm({
+                          ...cashForm,
+                          amount: raw ? new Intl.NumberFormat('id-ID').format(Number(raw)) : ''
+                        });
+                      }}
                       className="w-full px-3 py-2 bg-offwhite border border-card-border rounded-xl text-sm font-number focus:outline-none focus:border-navy"
                     />
                   </div>
