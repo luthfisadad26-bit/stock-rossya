@@ -879,9 +879,9 @@ export default function KasirPage() {
           <ReceiptPrint
             data={{
               invoiceNo: completedTx.invoiceNo,
-              date: todayDate,
-              customerName: completedTx.customerName,
-              cashierName: profile?.full_name || 'Kasir',
+              date: new Date().toLocaleDateString('id-ID'),
+              customerName: completedTx.customerName || undefined,
+              cashierName: 'Kasir',
               paymentMethod: completedTx.paymentMethod,
               total: completedTx.total,
               cashReceived: completedTx.cashAmount,

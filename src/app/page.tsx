@@ -508,7 +508,7 @@ export default function DashboardPage() {
               invoiceNo: selectedTxForPrint.invoice_no,
               date: new Date(selectedTxForPrint.created_at).toLocaleDateString('id-ID'),
               customerName: selectedTxForPrint.customer_name,
-              cashierName: profile?.full_name || 'Kasir',
+              cashierName: 'Kasir',
               paymentMethod: selectedTxForPrint.payment_method,
               total: selectedTxForPrint.total,
               items: selectedTxForPrint.items.map((i) => ({
